@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Ảnh Sinh Hoạt - UAH Ký Họa</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .upload-container {
+            max-width: 600px; margin: 40px auto; background: white; padding: 40px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .input-group select { 
+            width: 100%; padding: 12px; border: 1px solid #ddd; 
+            border-radius: 6px; font-size: 16px; background: #fff;
+        }
+
+        .drop-zone {
+            width: 100%; height: 200px; border: 3px dashed #ccc; border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; background: #fafafa; transition: 0.3s;
+            text-align: center; color: #888;
+        }
+        .drop-zone:hover { border-color: #333; background: #eee; }
+        .preview-area {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); 
+            gap: 10px; margin-top: 15px;
+        }
+        .preview-img {
+            width: 100%; height: 80px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd;
+        }
+        .file-count { margin-top: 10px; color: green; font-weight: bold; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <header style="background: white; padding: 15px; text-align: center; border-bottom: 1px solid #eee;">
+        <a href="/" style="text-decoration: none; color: black; font-weight: bold;">
+            <i class="fa fa-home"></i> VỀ TRANG CHỦ
+        </a>
+    </header>
+
+    <div class="upload-container">
+        <h2 style="text-align: center; margin-bottom: 30px;">ĐĂNG ẢNH HOẠT ĐỘNG</h2>
+
+        <div class="input-group">
+            <label>Chọn Album để lưu ảnh:</label>
+            <select id="albumSelect">
+                <option value="" disabled selected>-- Chọn Album --</option>
+                {% if albums %}
+                    {% for album in albums %}
+                        <option value="{{ album.id }}">{{ album.title }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="" disabled>Chưa có Album nào (Hãy tạo Album trước)</option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Chọn các ảnh muốn đăng:</label>
+            <div class="drop-zone" onclick="document.getElementById('activityPhotos').click()">
+                <i class="fa fa-images" style="font-size: 3em; margin-bottom: 10px;"></i>
+                <span>Bấm vào đây để chọn nhiều ảnh<br>(Hoặc kéo thả vào)</span>
+                <input type="file" id="activityPhotos" multiple accept="image/*" style="display:none" onchange="previewFiles(this)">
+            </div>
+            <div id="fileCount" class="file-count"></div>
+            <div id="previewGrid" class="preview-area"></div>
+        </div>
+
+        <button onclick="submitActivity()" class="btn-upload" style="width: 100%; padding: 15px; background: black; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+            ĐĂNG TẤT CẢ ẢNH
+        </button>
+    </div>
+
+    <script>
+        function previewFiles(input) {
+            const grid = document.getElementById('previewGrid');
+            const countDiv = document.getElementById('fileCount');
+            grid.innerHTML = ''; // Xóa cũ
+            
+            if (input.files && input.files.length > 0) {
+                countDiv.textContent = `Đã chọn ${input.files.length} ảnh.`;
+                
+                const maxPreview = Math.min(input.files.length, 8);
+                for(let i=0; i < maxPreview; i++) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        grid.appendChild(img);
+                    }
+                    reader.readAsDataURL(input.files[i]);
+                }
+                if (input.files.length > 8) {
+                    grid.innerHTML += `<div style="display:flex; align-items:center; justify-content:center; background:#eee;">+${input.files.length - 8}</div>`;
+                }
+            } else {
+                countDiv.textContent = '';
+            }
+        }
+
+        async function submitActivity() {
+            const albumId = document.getElementById('albumSelect').value;
+            const fileInput = document.getElementById('activityPhotos');
+            const btn = document.querySelector('.btn-upload');
+
+            if (!albumId) { alert("Vui lòng chọn Album trước!"); return; }
+            if (fileInput.files.length === 0) { alert("Chưa chọn ảnh nào!"); return; }
+
+            btn.textContent = "Đang tải lên..."; btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('album_id', albumId);
+            
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('files', fileInput.files[i]);
+            }
+
+            try {
+                const res = await fetch('/api/activity/upload', { method: 'POST', body: formData });
+                if (res.ok) {
+                    alert("Đã thêm ảnh vào Album thành công!");
+                    window.location.href = "/"; // Về trang chủ
+                } else {
+                    alert("Lỗi khi tải lên.");
+                    btn.textContent = "ĐĂNG TẤT CẢ ẢNH"; btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Lỗi kết nối.");
+                btn.textContent = "ĐĂNG TẤT CẢ ẢNH"; btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

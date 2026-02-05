@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAH - KÝ HỌA THỰC CHIẾN</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <script>
+        const CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+        const IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.role == 'admin' else 'false' }};
+        const IS_PHOTOGRAPHER = {{ 'true' if current_user.is_authenticated and current_user.role in ['admin', 'photographer'] else 'false' }};
+    </script>
+
+    <header>
+        <nav>
+            <div class="brand-container">
+                <a href="/" style="display:flex; align-items:center; gap:15px; text-decoration:none;">
+                    <img src="/static/logo.jpg" alt="Logo" class="site-logo">
+                    <h1>UAH - KÝ HỌA THỰC CHIẾN</h1>
+                </a>
+            </div>
+
+            {% if not current_user.is_authenticated %}
+                <ul class="nav-links">
+                    <li><a href="/about">Về CLB</a></li>
+                    <li><a href="#gallery">Trưng bày</a></li>
+                    <li><a href="/login" style="font-weight: bold;">Đăng nhập</a></li>
+                    <li><a href="https://www.facebook.com/profile.php?id=61571564265216" target="_blank">Liên hệ</a></li>
+                </ul>
+
+            {% else %}
+                <div class="hamburger-icon" onclick="toggleSideMenu()">
+                    <i class="fa fa-bars"></i>
+                </div>
+
+                <div id="sideMenu" class="side-menu">
+                    <span class="close-side-menu" onclick="toggleSideMenu()">&times;</span>
+
+                    <div class="user-info-menu">
+                        <img src="{{ current_user.avatar if current_user.avatar else 'https://ui-avatars.com/api/?name=' + current_user.fullname }}" class="menu-avatar">
+                        <p>Xin chào,<br><strong>{{ current_user.fullname }}</strong></p>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+
+                    <ul class="side-links">
+                        <li><a href="/profile"><i class="fa fa-user"></i> Trang cá nhân</a></li>
+
+                        {% if current_user.role in ['admin', 'photographer'] %}
+                        <li>
+                            <a href="/upload-activity">
+                                <i class="fa fa-camera" style="color: #e67e22;"></i> Đăng ảnh sinh hoạt
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% if current_user.role == 'admin' %}
+                        <li><a href="/admin" style="color:#e74c3c;"><i class="fa fa-gavel"></i> Duyệt tranh (Admin)</a></li>
+                        {% endif %}
+
+                        <li>
+                            {% if current_user.is_authenticated %}
+                                <a href="/upload"><i class="fa fa-upload"></i> Gửi tranh</a>
+                            {% else %}
+                                <a href="/login"><i class="fa fa-upload"></i> Gửi tranh</a>
+                            {% endif %}
+                        </li>
+                        <li><a href="/about"><i class="fa fa-info-circle"></i> Về CLB</a></li>
+                        <li><a href="#gallery"><i class="fa fa-image"></i> Trưng bày</a></li>
+                        <li><a href="#notice-board"><i class="fa fa-bullhorn"></i> Bảng tin</a></li>
+                        <li><a href="https://www.facebook.com/profile.php?id=61571564265216" target="_blank"><i class="fa fa-envelope"></i> Liên hệ</a></li>
+
+                        <li style="margin-top: 20px;">
+                            <a href="/logout" style="color: #666;"><i class="fa fa-sign-out-alt"></i> Đăng xuất</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div id="menuOverlay" class="menu-overlay" onclick="toggleSideMenu()"></div>
+            {% endif %}
+        </nav>
+    </header>
+
+    <section class="hero-section">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1>CHÀO MỪNG ĐẾN VỚI CLB KÝ HỌA UAH</h1>
+            <p>Đi và vẽ.</p>
+            <a href="#gallery" class="btn-hero">KHÁM PHÁ</a>
+        </div>
+    </section>
+
+    <section id="notice-board" class="notice-section">
+    <div class="notice-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+        <h2 style="margin: 0; border: none; padding: 0;"><i class="fa fa-bullhorn"></i> BẢNG TIN CLB</h2>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <button class="btn-mini-add" onclick="openNoticeModal()" style="padding: 5px 15px; font-size: 0.9em; cursor: pointer; background: #000; color: #fff; border: none;">
+            <i class="fa fa-plus"></i> THÊM TIN
+        </button>
+        {% endif %}
+    </div>
+    <div id="noticeContainer" class="notice-container-grid">
+        <p style="text-align:center; color:#999;">Đang cập nhật tin tức...</p>
+    </div>
+    </section>
+
+    <main id="gallery" class="main-layout">
+        <aside class="activity-sidebar">
+            <div class="sidebar-header" style="border-bottom: 3px solid #000; margin-bottom: 15px;">
+                <h3>KHOẢNH KHẮC</h3>
+            </div>
+            <p style="color:#666; font-size:0.9em; font-style:italic; margin-bottom:20px;">Hoạt động thực chiến của CLB</p>
+
+            <div id="albumList" class="activity-grid" style="display: flex; flex-direction: column; gap: 20px;">
+
+                <p style="text-align:center;">Đang tải...</p>
+            </div>
+        </aside>
+
+        <section class="gallery-content">
+            <h2 class="gallery-title">TÁC PHẨM MỚI NHẤT</h2>
+
+            <div class="search-container" style="margin: 0 0 30px 0;">
+                <i class="fa fa-search search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Tìm kiếm tranh hoặc tên tác giả...">
+            </div>
+
+            <div class="gallery-container" id="galleryContainer">
+                <p style="text-align:center">Đang tải dữ liệu...</p>
+            </div>
+        </section>
+
+    </main>
+
+    <section id="upload" class="upload-section">
+        <h2>Đóng góp tác phẩm</h2>
+        <div class="upload-form">
+            <div class="input-group">
+                <label for="imageInput" class="custom-file-upload">
+                    <i class="fa fa-cloud-upload"></i> Chọn ảnh ký họa
+                </label>
+                <input type="file" id="imageInput" accept="image/*">
+                <span id="fileName">Chưa chọn file</span>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="titleInput" placeholder="Tên tác phẩm">
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="artistInput" placeholder="Tên tác giả">
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="descInput" placeholder="Mô tả">
+            </div>
+
+            <button onclick="uploadImage()" class="btn-upload">ĐĂNG</button>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 UAH - CLB KÝ HỌA</p>
+        <p style="margin-top: 10px; font-weight: bold; font-size: 1.1em;">
+            <a href="tel:0797369038" style="text-decoration: none; color: #555;">
+                <i class="fa fa-phone"></i> 0797.369.038
+            </a>
+        </p>
+    </footer>
+
+    <div id="artModal" class="modal">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
+        <div id="modalCaption"></div>
+    </div>
+
+    <div id="userEditModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; padding: 30px; background: white;">
+            <span class="close-btn" onclick="closeUserEdit()">&times;</span>
+            <h2 style="text-align:center; margin-bottom:20px;">CHỈNH SỬA TÁC PHẨM</h2>
+            <div class="upload-form"> <input type="hidden" id="ueId">
+                <input type="text" id="ueTitle" placeholder="Tên tác phẩm">
+                <input type="text" id="ueArtist" placeholder="Tên tác giả">
+                <input type="text" id="ueDesc" placeholder="Mô tả">
+                <button class="btn-upload" onclick="submitUserEdit()">LƯU THAY ĐỔI</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="noticeModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; padding: 30px; background: white;">
+            <span class="close-btn" onclick="closeNoticeModal()">&times;</span>
+            <h2 style="text-align:center; margin-bottom:20px;">TẠO THÔNG BÁO</h2>
+            <div class="upload-form">
+                <input type="text" id="notTitle" placeholder="Tiêu đề">
+                <input type="text" id="notContent" placeholder="Nội dung">
+                <label>Thời gian:</label>
+                <input type="datetime-local" id="notTime" style="text-align:center;">
+                <input type="text" id="notLoc" placeholder="Địa điểm">
+                <button class="btn-upload" onclick="submitNotice()">ĐĂNG TIN</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="activityModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; padding: 30px; background: white;">
+            <span class="close-btn" onclick="closeActivityModal()">&times;</span>
+            <h2 style="text-align:center; margin-bottom:20px;">ĐĂNG ẢNH SINH HOẠT</h2>
+            <div class="upload-form">
+                <label class="custom-file-upload">
+                    <i class="fa fa-camera"></i> Chọn ảnh chụp
+                    <input type="file" id="actFile" accept="image/*" style="display:none;">
+                </label>
+                <div id="actFileName" style="text-align:center; margin-bottom:15px; font-size:0.9em; color:green;"></div>
+                <button class="btn-upload" onclick="uploadActivity()">ĐĂNG NGAY</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="spamPopup" class="spam-popup">
+        <div class="spam-content"><img src="/static/lebinh.jpg" alt="LEBINH"></div>
+    </div>
+
+    <div id="noticeDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 700px; padding: 40px; background: white;">
+            <span class="close-btn" onclick="document.getElementById('noticeDetailModal').style.display='none'">&times;</span>
+
+            <h2 id="ndetailTitle" style="font-size: 1.8em; margin-bottom: 10px; color: #000; text-transform: uppercase;"></h2>
+
+            <div style="color: #666; font-size: 0.9em; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
+                <span id="ndetailTime"><i class="fa fa-clock"></i> </span>
+                <span id="ndetailLoc" style="margin-left: 20px;"><i class="fa fa-map-marker-alt"></i> </span>
+            </div>
+
+            <div id="ndetailContent" style="font-family: 'Segoe UI', sans-serif; line-height: 1.8; font-size: 1.1em; white-space: pre-wrap;">
+                </div>
+        </div>
+    </div>
+
+    <div id="albumManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 800px; padding: 20px; background: white;">
+            <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+            <h2 id="managerAlbumTitle" style="text-align: center; margin-bottom: 20px; text-transform: uppercase;"></h2>
+
+            <div style="text-align: center; margin-bottom: 20px;">
+                <input type="hidden" id="currentAlbumId">
+                {% if current_user.role in ['admin', 'photographer'] %}
+                <input type="file" id="albumPhotos" multiple accept="image/*" style="display: none;" onchange="submitPhotosToAlbum()">
+                <button class="btn-upload" onclick="document.getElementById('albumPhotos').click()">+ THÊM ẢNH VÀO ALBUM</button>
+                {% endif %}
+            </div>
+
+            <div id="albumPhotosGrid" class="activity-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">            </div></div>
+    </div>
+
+    <div id="createAlbumModal" class="modal">
+        <div class="modal-content" style="max-width:400px; padding:30px; background:white;">
+            <span class="close-btn" onclick="document.getElementById('createAlbumModal').style.display='none'">&times;</span>
+            <h2 style="text-align:center;">TẠO ALBUM MỚI</h2>
+            <div class="upload-form">
+                <input type="text" id="albumTitle" placeholder="Tên Album (VD: Offline 20/11)">
+
+                <label style="display:block; margin-top:15px; font-weight:bold;">Chọn ảnh bìa Album:</label>
+                <input type="file" id="albumCover" accept="image/*" style="margin-top:5px; width:100%;">
+
+                <button class="btn-upload" onclick="submitCreateAlbum()" style="margin-top:20px;">TẠO NGAY</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

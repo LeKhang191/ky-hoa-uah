@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trang Quản Trị - Admin</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* CSS riêng cho trang Admin cho gọn */
+    .admin-container {
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 20px;
+      background: white;
+    }
+
+    .pending-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .pending-item {
+      display: flex;
+      gap: 20px;
+      border-bottom: 1px solid #eee;
+      padding: 15px 0;
+      align-items: center;
+    }
+
+    .pending-img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .pending-info {
+      flex: 1;
+    }
+
+    .btn-action {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+      margin-left: 5px;
+    }
+
+    .btn-approve {
+      background-color: #27ae60;
+    }
+
+    .btn-edit {
+      background-color: #f39c12;
+    }
+
+    .btn-delete {
+      background-color: #c0392b;
+      position: static;
+    }
+
+    /* Override style cũ */
+
+    /* Modal Edit Form */
+    .edit-form input,
+    .edit-form textarea {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <nav>
+      <h1>ADMIN DASHBOARD</h1>
+      <ul class="nav-links">
+        <li><a href="/">Về trang chủ</a></li>
+        <li><a href="/logout">Đăng xuất</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="admin-container">
+    <h2>DANH SÁCH CHỜ DUYỆT</h2>
+    <ul id="pendingList" class="pending-list">
+      <p>Đang tải...</p>
+    </ul>
+  </main>
+
+  <div id="editModal" class="modal">
+    <div class="modal-content" style="max-width: 500px; padding: 20px; background: white;">
+      <span class="close-btn" onclick="closeEditModal()">&times;</span>
+      <h2 style="text-align: center;">CHỈNH SỬA THÔNG TIN</h2>
+      <div class="edit-form">
+        <input type="hidden" id="editId">
+        <label>Tên tranh:</label>
+        <input type="text" id="editTitle">
+        <label>Tác giả:</label>
+        <input type="text" id="editArtist">
+        <label>Mô tả:</label>
+        <textarea id="editDesc" rows="4"></textarea>
+        <button class="btn-upload" onclick="saveEdit()">LƯU THAY ĐỔI</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // LOGIC JS RIÊNG CHO TRANG ADMIN
+    async function loadPending() {
+      const res = await fetch('/api/admin/pending');
+      const data = await res.json();
+      const list = document.getElementById('pendingList');
+      list.innerHTML = '';
+
+      if (data.length === 0) {
+        list.innerHTML = '<p>Không có tranh nào đang chờ duyệt.</p>';
+        return;
+      }
+
+      data.forEach(art => {
+        const li = document.createElement('li');
+        li.className = 'pending-item';
+        li.innerHTML = `
+                    <img src="${art.image_path}" class="pending-img">
+                    <div class="pending-info">
+                        <h3>${art.title}</h3>
+                        <p>Tác giả: <strong>${art.artist}</strong></p>
+                        <p>${art.description}</p>
+                        <p><small>Upload lúc: ${art.created_at}</small></p>
+                    </div>
+                    <div>
+                        <button class="btn-action btn-approve" onclick="approve(${art.id})"><i class="fa fa-check"></i> Duyệt</button>
+                        <button class="btn-action btn-edit" onclick="openEdit(${art.id}, '${art.title}', '${art.artist}', '${art.description}')"><i class="fa fa-pen"></i> Sửa</button>
+                        <button class="btn-action btn-delete" onclick="del(${art.id})"><i class="fa fa-trash"></i> Xóa</button>
+                    </div>
+                `;
+        list.appendChild(li);
+      });
+    }
+
+    // 1. Duyệt tranh
+    async function approve(id) {
+      if (!confirm("Duyệt tranh này để hiển thị công khai?")) return;
+      await fetch(`/api/admin/approve/${id}`, { method: 'POST' });
+      loadPending(); // Tải lại danh sách
+    }
+
+    // 2. Xóa tranh
+    async function del(id) {
+      if (!confirm("Xóa vĩnh viễn?")) return;
+      // Admin xóa không cần pass, dùng API cũ nhưng cần sửa logic backend nếu muốn bỏ check pass cho admin session
+      // Ở đây mình dùng tạm API delete cũ, bạn có thể nhập pass admin123 nếu code cũ yêu cầu
+      // Hoặc tốt nhất là viết API xóa riêng cho session Admin (gọn hơn)
+      await fetch(`/api/delete/${id}`, {
+        method: 'DELETE',
+        headers: { 'Admin-Password': 'admin123' } // Tạm thời hardcode hoặc sửa backend để check session
+      });
+      loadPending();
+    }
+
+    // 3. Logic Sửa tranh
+    function openEdit(id, title, artist, desc) {
+      document.getElementById('editId').value = id;
+      document.getElementById('editTitle').value = title;
+      document.getElementById('editArtist').value = artist;
+      document.getElementById('editDesc').value = desc;
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveEdit() {
+      const id = document.getElementById('editId').value;
+      const data = {
+        title: document.getElementById('editTitle').value,
+        artist: document.getElementById('editArtist').value,
+        description: document.getElementById('editDesc').value
+      };
+
+      await fetch(`/api/admin/edit/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      alert("Đã cập nhật!");
+      closeEditModal();
+      loadPending();
+    }
+
+    // Chạy khi vào trang
+    loadPending();
+  </script>
+</body>
+
+</html>

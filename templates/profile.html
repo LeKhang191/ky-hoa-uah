@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hồ Sơ Của Tôi</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="brand-container">
+                <a href="/" style="display:flex; align-items:center; gap:15px; text-decoration:none;">
+                    <img src="/static/logo.jpg" alt="Logo" class="site-logo">
+                    <h1>TRANG CÁ NHÂN</h1>
+                </a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="/">Về Trang Chủ</a></li>
+                <li><a href="/logout" style="color: #e74c3c;">Đăng xuất</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="profile-container">
+        <aside class="profile-sidebar">
+            <form method="POST" enctype="multipart/form-data" class="profile-card">
+                <div class="avatar-wrapper">
+                    <img src="{{ avatar_url }}" alt="Avatar" id="avatarPreview">
+                    <label for="avatarInput" class="avatar-edit-btn"><i class="fa fa-camera"></i></label>
+                    <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display:none;" onchange="previewImage(this)">
+                </div>
+
+                <h2 style="margin:10px 0;">{{ user.fullname }}</h2>
+                <p style="color:#777; font-size:0.9em;">@{{ user.username }}</p>
+
+                <div class="edit-group">
+                    <label>Đổi tên hiển thị:</label>
+                    <input type="text" name="fullname" value="{{ user.fullname }}" class="profile-input">
+                </div>
+
+                <button type="submit" class="btn-hero" style="width:100%; font-size:0.9em;">LƯU THAY ĐỔI</button>
+            </form>
+        </aside>
+
+        <main class="profile-gallery">
+            
+            {% if user.role in ['admin', 'photographer'] %}
+            <div style="margin-bottom: 50px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
+                    <h3>QUẢN LÝ ALBUM ẢNH</h3>
+                    <button onclick="document.getElementById('createAlbumModal').style.display='flex'" class="btn-upload" style="padding:5px 15px; font-size:0.8em;">
+                        <i class="fa fa-plus"></i> TẠO ALBUM
+                    </button>
+                </div>
+
+                <div class="gallery-grid">
+                    {% for album in albums %}
+                    <div class="artwork-card" onclick="openAlbumManager({{ album.id }}, '{{ album.title }}')">
+                        <div class="image-wrapper">
+                            <img src="{{ album.cover_image }}" style="height:180px; width:100%; object-fit:cover;">
+                        </div>
+                        <div class="artwork-info">
+                            <h3>{{ album.title }}</h3>
+                            <p style="color:#999; font-size:0.8em;">Bấm để thêm ảnh hoạt động</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <h3>KHO TRANH CỦA TÔI ({{ artworks|length }})</h3>
+
+            {% if artworks|length == 0 %}
+                <p style="text-align:center; color:#999; margin-top:50px;">Bạn chưa đăng bức tranh nào.</p>
+                <div style="text-align:center;"><a href="/#upload" class="btn-upload">ĐĂNG TRANH NGAY</a></div>
+            {% else %}
+                <div class="gallery-grid">
+                    {% for art in artworks %}
+                    <div class="artwork-card">
+                        <div class="image-wrapper">
+                            <img src="{{ art.image_path }}" loading="lazy">
+                            <div class="owner-controls" style="display:flex;">
+                                <button class="btn-mini-edit" onclick="openUserEdit({{ art.id }}, '{{ art.title }}', '{{ art.artist }}', '{{ art.description }}')">
+                                    <i class="fa fa-pen"></i>
+                                </button>
+                                <button class="btn-mini-delete" onclick="deleteArtwork({{ art.id }}, event)">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="artwork-info">
+                            <h3>{{ art.title }}</h3>
+                            <p style="font-size:0.8em; color:#999;">{{ art.created_at }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <div id="userEditModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; padding: 30px; background: white;">
+            <span class="close-btn" onclick="closeUserEdit()">&times;</span>
+            <h2 style="text-align:center; margin-bottom:20px; color:#333;">CHỈNH SỬA TÁC PHẨM</h2>
+            <div class="upload-form">
+                <input type="hidden" id="ueId">
+                <input type="text" id="ueTitle" placeholder="Tên tác phẩm">
+                <input type="text" id="ueArtist" placeholder="Tên tác giả">
+                <input type="text" id="ueDesc" placeholder="Mô tả">
+                <button class="btn-upload" onclick="submitUserEdit()" style="margin-top:20px;">LƯU THAY ĐỔI</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="createAlbumModal" class="modal">
+        <div class="modal-content" style="max-width:400px; padding:30px; background:white;">
+            <span class="close-btn" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2 style="text-align:center;">TẠO ALBUM MỚI</h2>
+            <div class="upload-form">
+                <input type="text" id="albumTitle" placeholder="Tên Album (VD: Offline Quận 1)">
+                
+                <label style="display:block; margin-top:15px; font-weight:bold; text-align: left;">Ảnh bìa Album:</label>
+                <input type="file" id="albumCover" accept="image/*" style="margin-top:5px; width:100%; border: 1px solid #ddd; padding: 5px;">
+                
+                <button class="btn-upload" onclick="submitCreateAlbum()" style="margin-top:20px;">TẠO NGAY</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="albumManagerModal" class="modal">
+        <div class="modal-content" style="max-width:800px; padding:20px; background:white;">
+            <span class="close-btn" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2 id="managerAlbumTitle" style="text-align:center; margin-bottom:20px; text-transform: uppercase;"></h2>
+
+            <div style="text-align:center; margin-bottom:20px;">
+                <input type="hidden" id="currentAlbumId">
+                <input type="file" id="albumPhotos" multiple accept="image/*" style="display:none;" onchange="submitPhotosToAlbum()">
+                <button class="btn-upload" onclick="document.getElementById('albumPhotos').click()">
+                    <i class="fa fa-cloud-upload"></i> THÊM ẢNH VÀO ALBUM
+                </button>
+            </div>
+
+            <div id="albumPhotosGrid" class="activity-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px;">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('avatarPreview').src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+    
+    <script src="/static/script.js"></script>
+</body>
+</html>

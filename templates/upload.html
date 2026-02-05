@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Tác Phẩm - UAH Ký Họa</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        
+        .upload-container {
+            max-width: 600px; margin: 40px auto; background: white; padding: 40px;
+            border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+
+        .drop-zone {
+            width: 100%;
+            height: 250px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: "Quicksand", sans-serif;
+            font-weight: 500;
+            font-size: 1.1em;
+            cursor: pointer;
+            color: #cccccc;
+            border: 3px dashed #cccccc; /* Viền nét đứt */
+            border-radius: 10px;
+            transition: 0.3s;
+            background-color: #fafafa;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .drop-zone:hover, .drop-zone.drop-zone--over {
+            border-color: #000;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .drop-zone__input { display: none; } /* Ẩn nút chọn file xấu xí đi */
+
+        .drop-zone__thumb {
+            width: 100%; height: 100%; border-radius: 10px;
+            overflow: hidden; background-color: #cccccc;
+            background-size: cover; position: absolute; z-index: 2;
+        }
+        
+        .drop-prompt { pointer-events: none; z-index: 1; }
+        .drop-prompt i { font-size: 3em; margin-bottom: 10px; display: block; }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+        
+        .btn-upload {
+            width: 100%; padding: 15px; background: black; color: white;
+            border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-upload:hover { background: #333; }
+    </style>
+</head>
+<body>
+
+    <header style="background: white; padding: 15px; text-align: center; border-bottom: 1px solid #eee;">
+        <a href="/" style="text-decoration: none; color: black; font-weight: bold;">
+            <i class="fa fa-chevron-left"></i> VỀ TRANG CHỦ
+        </a>
+    </header>
+
+    <div class="upload-container">
+        <h2 style="text-align: center; margin-bottom: 30px; text-transform: uppercase;">Đăng Tác Phẩm Mới</h2>
+
+        <div class="upload-form">
+            
+            <div class="input-group">
+                <label>Ảnh tác phẩm:</label>
+                <div class="drop-zone">
+                    <div class="drop-prompt">
+                        <i class="fa fa-cloud-upload-alt"></i>
+                        <span>Kéo thả ảnh vào đây<br>hoặc bấm để chọn</span>
+                    </div>
+                    <input type="file" name="myFile" class="drop-zone__input" id="imageInput" accept="image/*">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Tên tác phẩm (Bắt buộc):</label>
+                <input type="text" id="titleInput" placeholder="Ví dụ: Góc phố Sài Gòn">
+            </div>
+
+            <div class="input-group">
+                <label>Tên tác giả:</label>
+                <input type="text" id="artistInput" placeholder="Tên của bạn">
+            </div>
+
+            <div class="input-group">
+                <label>Mô tả (Tùy chọn):</label>
+                <input type="text" id="descInput" placeholder="Đôi lời về bức tranh...">
+            </div>
+
+            <button onclick="uploadImage()" class="btn-upload">ĐĂNG NGAY</button>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script> <script>
+        // --- PHẦN XỬ LÝ KÉO THẢ ẢNH ---
+        const dropZoneElement = document.querySelector(".drop-zone");
+        const inputElement = document.querySelector(".drop-zone__input");
+
+        dropZoneElement.addEventListener("click", (e) => {
+            inputElement.click();
+        });
+
+        inputElement.addEventListener("change", (e) => {
+            if (inputElement.files.length) {
+                updateThumbnail(dropZoneElement, inputElement.files[0]);
+            }
+        });
+
+        dropZoneElement.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropZoneElement.classList.add("drop-zone--over");
+        });
+
+        ["dragleave", "dragend"].forEach((type) => {
+            dropZoneElement.addEventListener(type, (e) => {
+                dropZoneElement.classList.remove("drop-zone--over");
+            });
+        });
+
+        dropZoneElement.addEventListener("drop", (e) => {
+            e.preventDefault();
+            
+            if (e.dataTransfer.files.length) {
+                inputElement.files = e.dataTransfer.files; // Gán file vào input
+                updateThumbnail(dropZoneElement, e.dataTransfer.files[0]);
+            }
+            dropZoneElement.classList.remove("drop-zone--over");
+        });
+
+        function updateThumbnail(dropZoneElement, file) {
+            let thumbnailElement = dropZoneElement.querySelector(".drop-zone__thumb");
+            
+            if (dropZoneElement.querySelector(".drop-prompt")) {
+                dropZoneElement.querySelector(".drop-prompt").remove();
+            }
+
+            if (!thumbnailElement) {
+                thumbnailElement = document.createElement("div");
+                thumbnailElement.classList.add("drop-zone__thumb");
+                dropZoneElement.appendChild(thumbnailElement);
+            }
+
+            thumbnailElement.dataset.label = file.name;
+
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    thumbnailElement.style.backgroundImage = `url('${reader.result}')`;
+                };
+            } else {
+                thumbnailElement.style.backgroundImage = null;
+            }
+        }
+
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageInput');
+            const title = document.getElementById('titleInput').value;
+            const artist = document.getElementById('artistInput').value;
+            const desc = document.getElementById('descInput').value;
+            const btn = document.querySelector('.btn-upload');
+
+            if (!fileInput.files[0]) { alert("Bạn chưa chọn ảnh nào!"); return; }
+            if (!title) { alert("Vui lòng nhập tên tác phẩm!"); return; }
+            if (!artist) { alert("Vui lòng nhập tên tác giả!"); return; }
+
+            btn.textContent = "Đang tải lên...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('title', title);
+            formData.append('artist', artist);
+            formData.append('description', desc);
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                if (res.ok) {
+                    alert("Đăng thành công! Đang chuyển về trang chủ...");
+                    window.location.href = "/";
+                } else {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.error || "Không xác định"));
+                    btn.textContent = "ĐĂNG NGAY"; btn.disabled = false;
+                }
+            } catch (e) {
+                alert("Lỗi kết nối!");
+                btn.textContent = "ĐĂNG NGAY"; btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
