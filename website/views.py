@@ -6,16 +6,16 @@ views = Blueprint('views', __name__)
 # TODO:
 
 # basic routes
-@app.route('/')
+@views.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/about')
+@views.route('/about')
 def about():
     return render_template('about.html')
 
 # artwork API
-@app.route('/api/artworks', methods=['GET'])
+@views.route('/api/artworks', methods=['GET'])
 def get_artworks():
     conn = get_db_connection()
     query = '''SELECT a.*, (SELECT 1 FROM likes WHERE user_id = ? AND artwork_id = a.id) as is_liked
@@ -32,7 +32,7 @@ def get_artworks():
         results.append(item)
     return jsonify(results)
 
-@app.route('/api/upload', methods=['POST'])
+@views.route('/api/upload', methods=['POST'])
 def upload_file():
     if not current_user.is_authenticated: return jsonify({'error': 'Cần đăng nhập'}), 403
     file = request.files.get('file')
@@ -53,21 +53,21 @@ def upload_file():
         return jsonify({'message': 'OK'}), 200
     return jsonify({'error': 'Lỗi file'}), 400
 
-@app.route('/upload')
+@views.route('/upload')
 def upload_page():
     if not current_user.is_authenticated:
         return redirect(url_for('login')) 
     return render_template('upload.html')
 
 # acitivities API
-@app.route('/api/activities', methods=['GET'])
+@views.route('/api/activities', methods=['GET'])
 def get_activities():
     conn = get_db_connection()
     photos = conn.execute('SELECT * FROM activities ORDER BY id DESC LIMIT 12').fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in photos])
 
-@app.route('/api/activity/upload', methods=['POST'])
+@views.route('/api/activity/upload', methods=['POST'])
 @login_required
 def upload_activity():
     if current_user.role not in ['admin', 'photographer']:
@@ -88,7 +88,7 @@ def upload_activity():
     conn.close()
     return jsonify({'message': 'OK'})
 
-@app.route('/upload-activity')
+@views.route('/upload-activity')
 def upload_activity_page():
     if not current_user.is_authenticated or current_user.role not in ['admin', 'photographer']:
         return redirect(url_for('index'))
@@ -98,7 +98,7 @@ def upload_activity_page():
     conn.close()
     return render_template('activity.html', albums=albums)
 
-@app.route('/api/activity/delete/<int:id>', methods=['DELETE'])
+@views.route('/api/activity/delete/<int:id>', methods=['DELETE'])
 @login_required
 def delete_activity(id):
     if current_user.role not in ['admin', 'photographer']: return jsonify({'error': '403'}), 403
@@ -113,14 +113,14 @@ def delete_activity(id):
     return jsonify({'message': 'Deleted'})
 
 # notice API
-@app.route('/api/announcements', methods=['GET'])
+@views.route('/api/announcements', methods=['GET'])
 def get_announcements():
     conn = get_db_connection()
     notices = conn.execute('SELECT * FROM announcements ORDER BY id DESC').fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in notices])
 
-@app.route('/api/announcement/create', methods=['POST'])
+@views.route('/api/announcement/create', methods=['POST'])
 @login_required
 def create_announcement():
     if current_user.role != 'admin': return jsonify({'error': '403'}), 403
@@ -132,7 +132,7 @@ def create_announcement():
     conn.close()
     return jsonify({'message': 'OK'})
 
-@app.route('/api/announcement/delete/<int:id>', methods=['DELETE'])
+@views.route('/api/announcement/delete/<int:id>', methods=['DELETE'])
 @login_required
 def delete_announcement(id):
     if current_user.role != 'admin': return jsonify({'error': '403'}), 403
@@ -143,14 +143,14 @@ def delete_announcement(id):
     return jsonify({'message': 'Deleted'})
 
 # album API
-@app.route('/api/albums', methods=['GET'])
+@views.route('/api/albums', methods=['GET'])
 def get_albums():
     conn = get_db_connection()
     albums = conn.execute('SELECT * FROM albums ORDER BY id DESC').fetchall()
     conn.close()
     return jsonify([dict(ix) for ix in albums])
 
-@app.route('/api/album/create', methods=['POST'])
+@views.route('/api/album/create', methods=['POST'])
 @login_required
 def create_album():
     if current_user.role not in ['admin', 'photographer']:
@@ -172,7 +172,7 @@ def create_album():
     conn.close()
     return jsonify({'message': 'OK'})
 
-@app.route('/api/album/<int:id>/photos', methods=['GET'])
+@views.route('/api/album/<int:id>/photos', methods=['GET'])
 def get_album_photos(id):
     conn = get_db_connection()
     photos = conn.execute('SELECT * FROM activities WHERE album_id = ? ORDER BY id DESC', (id,)).fetchall()
@@ -181,13 +181,13 @@ def get_album_photos(id):
 
 
 # admin dashboard
-@app.route('/admin')
+@views.route('/admin')
 @login_required
 def admin_page():
     if current_user.role != 'admin': return "403", 403
     return render_template('admin.html')
 
-@app.route('/api/admin/pending', methods=['GET'])
+@views.route('/api/admin/pending', methods=['GET'])
 @login_required
 def get_pending():
     if current_user.role != 'admin': return jsonify({'error': '403'}), 403
@@ -196,7 +196,7 @@ def get_pending():
     conn.close()
     return jsonify([dict(ix) for ix in artworks])
 
-@app.route('/api/admin/approve/<int:id>', methods=['POST'])
+@views.route('/api/admin/approve/<int:id>', methods=['POST'])
 @login_required
 def approve_artwork(id):
     if current_user.role != 'admin': return jsonify({'error': '403'}), 403
@@ -207,7 +207,7 @@ def approve_artwork(id):
     return jsonify({'message': 'OK'})
 
 # Edit, Delete, Like
-@app.route('/api/artwork/edit/<int:id>', methods=['POST'])
+@views.route('/api/artwork/edit/<int:id>', methods=['POST'])
 @login_required
 def user_edit_artwork(id):
     data = request.json
@@ -224,7 +224,7 @@ def user_edit_artwork(id):
     conn.close()
     return jsonify({'message': 'OK'})
 
-@app.route('/api/delete/<int:id>', methods=['DELETE'])
+@views.route('/api/delete/<int:id>', methods=['DELETE'])
 def delete_artwork(id):
     if not current_user.is_authenticated: return jsonify({'error': '403'}), 403
     conn = get_db_connection()
@@ -241,7 +241,7 @@ def delete_artwork(id):
         return jsonify({'message': 'Deleted'}), 200
     return jsonify({'error': 'Not found'}), 404
 
-@app.route('/api/like/<int:id>', methods=['POST'])
+@views.route('/api/like/<int:id>', methods=['POST'])
 def like_artwork(id):
     if not current_user.is_authenticated: return jsonify({'error': 'login_required'}), 401
     try:
