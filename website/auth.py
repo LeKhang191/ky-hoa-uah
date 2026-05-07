@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, flash, jsonify
 from flask_login import login_required, current_user
-
+from flask_login import login_user, login_required, logout_user, current_user
+from flask import Blueprint, render_template, request, flash, redirect, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
 from .models import get_db_connection, User
 
 auth = Blueprint('auth', __name__)
@@ -23,7 +25,7 @@ def signup():
         conn = get_db_connection()
         if conn.execute('SELECT 1 FROM users WHERE username = ?', (username,)).fetchone():
             flash('Tên đăng nhập đã tồn tại!')
-            return redirect(url_for('signup'))
+            return redirect(url_for('auth.signup'))
 
         hash_pass = generate_password_hash(password, method='pbkdf2:sha256')
         conn.execute('INSERT INTO users (username, password_hash, fullname, role) VALUES (?, ?, ?, ?)',
@@ -31,7 +33,7 @@ def signup():
         conn.commit()
         conn.close()
         flash('Đăng ký thành công!')
-        return redirect(url_for('login'))
+        return redirect(url_for('auth.login'))
     return render_template('signup.html')
 
 @auth.route('/login', methods=['GET', 'POST'])
@@ -46,7 +48,7 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             user_obj = User(user['id'], user['username'], user['fullname'], user['role'], user['avatar'])
             login_user(user_obj)
-            return redirect(url_for('index'))
+            return redirect(url_for('views.index'))
         else:
             flash('Sai thông tin đăng nhập!')
     return render_template('login.html')
@@ -55,7 +57,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('views.index'))
 
 @auth.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -81,7 +83,7 @@ def profile():
 
         conn.commit()
         flash('Update successfully!')
-        return redirect(url_for('profile'))
+        return redirect(url_for('views.profile'))
 
     user = conn.execute('SELECT * FROM users WHERE id = ?', (current_user.id,)).fetchone()
     my_artworks = conn.execute('SELECT * FROM artworks WHERE user_id = ? ORDER BY id DESC', (current_user.id,)).fetchall()
