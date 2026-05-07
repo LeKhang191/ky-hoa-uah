@@ -9,10 +9,10 @@
 </head>
 <body>
     <script>
-        const CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
-        const IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.role == 'admin' else 'false' }};
-        const IS_PHOTOGRAPHER = {{ 'true' if current_user.is_authenticated and current_user.role in ['admin', 'photographer'] else 'false' }};
-    </script>
+    const CURRENT_USER_ID = Number("{{ current_user.id if current_user.is_authenticated else '' }}") || null;
+    const IS_ADMIN = "{{ current_user.role if current_user.is_authenticated else '' }}" === 'admin';
+    const IS_PHOTOGRAPHER = ["admin", "photographer"].includes("{{ current_user.role if current_user.is_authenticated else '' }}");
+</script>
 
     <header>
         <nav>
@@ -27,7 +27,7 @@
                 <ul class="nav-links">
                     <li><a href="/about">Về CLB</a></li>
                     <li><a href="#gallery">Trưng bày</a></li>
-                    <li><a href="/login" style="font-weight: bold;">Đăng nhập</a></li>
+                    <li><a href="{{ url_for('auth.login') }}" style="font-weight: bold;">Đăng nhập</a></li>
                     <li><a href="https://www.facebook.com/profile.php?id=61571564265216" target="_blank">Liên hệ</a></li>
                 </ul>
 
@@ -47,7 +47,7 @@
                     <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
 
                     <ul class="side-links">
-                        <li><a href="/profile"><i class="fa fa-user"></i> Trang cá nhân</a></li>
+                        <li><a href="{{ url_for('views.profile') }}"><i class="fa fa-user"></i> Trang cá nhân</a></li>
 
                         {% if current_user.role in ['admin', 'photographer'] %}
                         <li>
@@ -58,7 +58,7 @@
                         {% endif %}
 
                         {% if current_user.role == 'admin' %}
-                        <li><a href="/admin" style="color:#e74c3c;"><i class="fa fa-gavel"></i> Duyệt tranh (Admin)</a></li>
+                        <li><a href="{{ url_for('views.admin') }}" style="color:#e74c3c;"><i class="fa fa-gavel"></i> Duyệt tranh (Admin)</a></li>
                         {% endif %}
 
                         <li>
@@ -74,7 +74,7 @@
                         <li><a href="https://www.facebook.com/profile.php?id=61571564265216" target="_blank"><i class="fa fa-envelope"></i> Liên hệ</a></li>
 
                         <li style="margin-top: 20px;">
-                            <a href="/logout" style="color: #666;"><i class="fa fa-sign-out-alt"></i> Đăng xuất</a>
+                            <a href="{{ url_for('auth.login') }}" style="color: #666;"><i class="fa fa-sign-out-alt"></i> Đăng xuất</a>
                         </li>
                     </ul>
                 </div>
