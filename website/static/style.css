@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
-/* --- CẤU TRÚC CHUNG --- */
+/* main structure */
 body {
   font-family: 'Montserrat', sans-serif;
   margin: 0;
@@ -408,7 +408,8 @@ input[type="file"] {
   display: block;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   padding: 12px;
   border: none;
   border-bottom: 1px solid #ddd;
@@ -422,7 +423,8 @@ input[type="text"] {
   font-family: 'Montserrat', sans-serif;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus {
   border-bottom-color: #000;
 }
 
@@ -843,10 +845,10 @@ footer p {
 .auth-input {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid #ccc;
-    background: #fff;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    background: transparent;
     font-size: 1em;
-    outline: none;
     transition: 0.3s;
     text-align: left;
     border-radius: 0;
@@ -854,8 +856,8 @@ footer p {
 }
 
 .auth-input:focus {
-    border-color: #000;
-    background: #fafafa;
+    border-bottom: 2px solid #000;
+    background: transparent;
 }
 
 .btn-auth {
