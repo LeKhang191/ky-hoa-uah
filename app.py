@@ -9,7 +9,7 @@ from PIL import Image
 app = Flask(__name__)
 app.secret_key = '1901'
 
-# --- CẤU HÌNH ---
+# --- Config ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static/uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
