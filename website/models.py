@@ -3,11 +3,21 @@ import sqlite3
 from flask_login import UserMixin
 from PIL import Image
 
+# Đăng ký hỗ trợ ảnh HEIC/HEIF (định dạng mặc định của iPhone) nếu có cài pillow-heif.
+# Nếu chưa cài, code vẫn chạy bình thường với JPG/PNG/GIF/WEBP, chỉ là HEIC sẽ bị từ chối
+# với thông báo rõ ràng thay vì âm thầm lưu ảnh vỡ.
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+    HEIC_SUPPORTED = True
+except ImportError:
+    HEIC_SUPPORTED = False
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(CURRENT_DIR)
 DB_PATH = os.path.join(ROOT_DIR, 'my_database.db')
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'}
 
 
 class User(UserMixin):
@@ -86,20 +96,34 @@ def init_db():
 
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext in ('heic', 'heif') and not HEIC_SUPPORTED:
+        return False
+    return ext in ALLOWED_EXTENSIONS
 
 
 def optimize_image(file_stream, save_path, max_width=1200, quality=85):
-    """Resize + nén ảnh trước khi lưu. Trả về True/False."""
+    """Resize + nén ảnh trước khi lưu.
+    Trả về (True, None) nếu thành công, (False, "lý do") nếu thất bại —
+    LUÔN kiểm tra giá trị trả về ở nơi gọi hàm này, không được bỏ qua,
+    nếu không sẽ tạo ra bản ghi database trỏ tới ảnh không tồn tại."""
     try:
         img = Image.open(file_stream)
+        img.load()  # ép Pillow đọc toàn bộ dữ liệu ngay, để phát hiện lỗi sớm
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         if img.width > max_width:
             ratio = max_width / float(img.width)
             new_height = int(float(img.height) * ratio)
             img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-        img.save(save_path, optimize=True, quality=quality)
-        return True
-    except Exception:
-        return False
+
+        # Luôn lưu ra .jpg cho đồng nhất, kể cả nếu ảnh gốc là .png/.heic
+        base, _ = os.path.splitext(save_path)
+        save_path = base + '.jpg'
+
+        img.save(save_path, 'JPEG', optimize=True, quality=quality)
+        return True, save_path
+    except Exception as e:
+        return False, str(e)

@@ -55,15 +55,18 @@ def upload_file():
 
         filename = secure_filename(file.filename)
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        optimize_image(file, file_path)
+        success, result = optimize_image(file, file_path)
+        if not success:
+            return jsonify({'error': f'Không xử lý được ảnh này ({result}). Hãy thử lưu ảnh dưới dạng JPG/PNG rồi tải lại.'}), 400
 
+        saved_filename = os.path.basename(result)
         conn = get_db_connection()
         # status mặc định 'pending': tranh cần admin duyệt ở /admin trước khi
         # hiển thị công khai (đúng với luồng duyệt tranh đã có sẵn trong hệ thống).
         conn.execute(
             'INSERT INTO artworks (title, artist, description, image_path, status, user_id) '
             'VALUES(?, ?, ?, ?, ?, ?)',
-            (title, artist, desc, f"/static/uploads/{filename}", 'pending', current_user.id),
+            (title, artist, desc, f"/static/uploads/{saved_filename}", 'pending', current_user.id),
         )
         conn.commit()
         conn.close()
@@ -97,18 +100,25 @@ def upload_activity():
     files = request.files.getlist('files')
 
     conn = get_db_connection()
+    skipped = []
     for file in files:
         if file and file.filename != '' and allowed_file(file.filename):
             fname = secure_filename(f"activity_{file.filename}")
             path = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
-            optimize_image(file, path)
+            success, result = optimize_image(file, path)
+            if not success:
+                skipped.append(file.filename)
+                continue
+            saved_filename = os.path.basename(result)
             conn.execute(
                 'INSERT INTO activities (image_path, album_id) VALUES (?, ?)',
-                (f"/static/uploads/{fname}", album_id),
+                (f"/static/uploads/{saved_filename}", album_id),
             )
 
     conn.commit()
     conn.close()
+    if skipped:
+        return jsonify({'message': 'OK', 'skipped': skipped}), 200
     return jsonify({'message': 'OK'})
 
 
@@ -204,10 +214,13 @@ def create_album():
 
     filename = secure_filename(f"cover_{file.filename}")
     path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    optimize_image(file, path)
+    success, result = optimize_image(file, path)
+    if not success:
+        return jsonify({'error': f'Không xử lý được ảnh bìa này ({result}). Hãy thử ảnh JPG/PNG khác.'}), 400
+    saved_filename = os.path.basename(result)
 
     conn = get_db_connection()
-    conn.execute('INSERT INTO albums (title, cover_image) VALUES (?, ?)', (title, f"/static/uploads/{filename}"))
+    conn.execute('INSERT INTO albums (title, cover_image) VALUES (?, ?)', (title, f"/static/uploads/{saved_filename}"))
     conn.commit()
     conn.close()
     return jsonify({'message': 'OK'})

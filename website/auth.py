@@ -91,9 +91,13 @@ def profile():
             else:
                 filename = secure_filename(f"avatar_{current_user.id}_{avatar_file.filename}")
                 file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                optimize_image(avatar_file, file_path)
-                db_avatar_path = f"/static/uploads/{filename}"
-                conn.execute('UPDATE users SET avatar = ? WHERE id = ?', (db_avatar_path, current_user.id))
+                success, result = optimize_image(avatar_file, file_path)
+                if not success:
+                    flash(f'Không xử lý được ảnh này ({result}). Hãy thử ảnh JPG/PNG khác.')
+                else:
+                    saved_filename = os.path.basename(result)
+                    db_avatar_path = f"/static/uploads/{saved_filename}"
+                    conn.execute('UPDATE users SET avatar = ? WHERE id = ?', (db_avatar_path, current_user.id))
 
         conn.commit()
         flash('Cập nhật thành công!')
