@@ -15,7 +15,7 @@ Kho lưu trữ mã nguồn của website **CLB Ký họa Thực chiến - Đại
 
 ---
 
-## Công nghệ sử dụng
+## Công nghệ 
 - **Backend**: Python (Flask Framework).
 - **Frontend**: HTML5, CSS3, JavaScript (ES6).
 - **Database**: SQLite (Quản lý người dùng, tác phẩm và thông báo).
@@ -31,7 +31,7 @@ Kho lưu trữ mã nguồn của website **CLB Ký họa Thực chiến - Đại
 ---
 
 ## Tác giả
-- **Lê Khang** (LeKhang191) - Sinh viên CNTT năm 2.
+- **Lê Khang** (LeKhang191).
 - Dự án được phát triển với mục đích hỗ trợ hoạt động cho CLB Ký họa UAH.
 
 ---
@@ -40,4 +40,4 @@ Kho lưu trữ mã nguồn của website **CLB Ký họa Thực chiến - Đại
 - **Facebook**: [UAH - Ký họa Thực chiến](https://www.facebook.com/profile.php?id=61571564265216).
 - **Số điện thoại**: 0797.369.038.
 
-&copy; 2025 UAH - CLB KÝ HỌA
+&copy; 2025 UAH
