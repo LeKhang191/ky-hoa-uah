@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, flash, jsonify, redirect,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from .models import get_db_connection, optimize_image, allowed_file
+from .models import get_db_connection, save_image, delete_image, allowed_file
 
 views = Blueprint('views', __name__)
 
@@ -53,20 +53,17 @@ def upload_file():
         if not allowed_file(file.filename):
             return jsonify({'error': 'Định dạng ảnh không được hỗ trợ'}), 400
 
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        success, result = optimize_image(file, file_path)
-        if not success:
-            return jsonify({'error': f'Không xử lý được ảnh này ({result}). Hãy thử lưu ảnh dưới dạng JPG/PNG rồi tải lại.'}), 400
+        result = save_image(file, file.filename, current_app.config['UPLOAD_FOLDER'])
+        if not result['success']:
+            return jsonify({'error': f"Không xử lý được ảnh này ({result['error']}). Hãy thử lưu ảnh dưới dạng JPG/PNG rồi tải lại."}), 400
 
-        saved_filename = os.path.basename(result)
         conn = get_db_connection()
         # status mặc định 'pending': tranh cần admin duyệt ở /admin trước khi
         # hiển thị công khai (đúng với luồng duyệt tranh đã có sẵn trong hệ thống).
         conn.execute(
-            'INSERT INTO artworks (title, artist, description, image_path, status, user_id) '
-            'VALUES(?, ?, ?, ?, ?, ?)',
-            (title, artist, desc, f"/static/uploads/{saved_filename}", 'pending', current_user.id),
+            'INSERT INTO artworks (title, artist, description, image_path, image_public_id, status, user_id) '
+            'VALUES(?, ?, ?, ?, ?, ?, ?)',
+            (title, artist, desc, result['path'], result['public_id'], 'pending', current_user.id),
         )
         conn.commit()
         conn.close()
@@ -103,16 +100,13 @@ def upload_activity():
     skipped = []
     for file in files:
         if file and file.filename != '' and allowed_file(file.filename):
-            fname = secure_filename(f"activity_{file.filename}")
-            path = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
-            success, result = optimize_image(file, path)
-            if not success:
+            result = save_image(file, f"activity_{file.filename}", current_app.config['UPLOAD_FOLDER'])
+            if not result['success']:
                 skipped.append(file.filename)
                 continue
-            saved_filename = os.path.basename(result)
             conn.execute(
-                'INSERT INTO activities (image_path, album_id) VALUES (?, ?)',
-                (f"/static/uploads/{saved_filename}", album_id),
+                'INSERT INTO activities (image_path, image_public_id, album_id) VALUES (?, ?, ?)',
+                (result['path'], result['public_id'], album_id),
             )
 
     conn.commit()
@@ -141,10 +135,7 @@ def delete_activity(id):
     conn = get_db_connection()
     photo = conn.execute('SELECT * FROM activities WHERE id=?', (id,)).fetchone()
     if photo:
-        try:
-            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], os.path.basename(photo['image_path'])))
-        except Exception:
-            pass
+        delete_image(photo['image_path'], photo['image_public_id'] if 'image_public_id' in photo.keys() else None)
         conn.execute('DELETE FROM activities WHERE id=?', (id,))
         conn.commit()
     conn.close()
@@ -212,15 +203,15 @@ def create_album():
     if not allowed_file(file.filename):
         return jsonify({'error': 'Định dạng ảnh không được hỗ trợ'}), 400
 
-    filename = secure_filename(f"cover_{file.filename}")
-    path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-    success, result = optimize_image(file, path)
-    if not success:
-        return jsonify({'error': f'Không xử lý được ảnh bìa này ({result}). Hãy thử ảnh JPG/PNG khác.'}), 400
-    saved_filename = os.path.basename(result)
+    result = save_image(file, f"cover_{file.filename}", current_app.config['UPLOAD_FOLDER'])
+    if not result['success']:
+        return jsonify({'error': f"Không xử lý được ảnh bìa này ({result['error']}). Hãy thử ảnh JPG/PNG khác."}), 400
 
     conn = get_db_connection()
-    conn.execute('INSERT INTO albums (title, cover_image) VALUES (?, ?)', (title, f"/static/uploads/{saved_filename}"))
+    conn.execute(
+        'INSERT INTO albums (title, cover_image, cover_public_id) VALUES (?, ?, ?)',
+        (title, result['path'], result['public_id']),
+    )
     conn.commit()
     conn.close()
     return jsonify({'message': 'OK'})
@@ -300,16 +291,71 @@ def delete_artwork(id):
             conn.close()
             return jsonify({'error': '403'}), 403
 
-        try:
-            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], os.path.basename(artwork['image_path'])))
-        except Exception:
-            pass
+        delete_image(artwork['image_path'], artwork['image_public_id'] if 'image_public_id' in artwork.keys() else None)
         conn.execute('DELETE FROM artworks WHERE id = ?', (id,))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Deleted'}), 200
     conn.close()
     return jsonify({'error': 'Not found'}), 404
+
+
+@views.route('/api/artwork/<int:id>/comments', methods=['GET'])
+def get_comments(id):
+    conn = get_db_connection()
+    rows = conn.execute(
+        '''SELECT c.id, c.content, c.created_at, c.user_id,
+                  u.fullname, u.username, u.avatar
+           FROM comments c JOIN users u ON u.id = c.user_id
+           WHERE c.artwork_id = ? ORDER BY c.id ASC''',
+        (id,),
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@views.route('/api/artwork/<int:id>/comments', methods=['POST'])
+@login_required
+def add_comment(id):
+    data = request.json or {}
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({'error': 'Bình luận không được để trống'}), 400
+    if len(content) > 500:
+        return jsonify({'error': 'Bình luận quá dài (tối đa 500 ký tự)'}), 400
+
+    conn = get_db_connection()
+    artwork = conn.execute('SELECT id FROM artworks WHERE id = ?', (id,)).fetchone()
+    if not artwork:
+        conn.close()
+        return jsonify({'error': 'Không tìm thấy tranh'}), 404
+
+    conn.execute(
+        'INSERT INTO comments (artwork_id, user_id, content) VALUES (?, ?, ?)',
+        (id, current_user.id, content),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'OK'}), 201
+
+
+@views.route('/api/comment/<int:comment_id>', methods=['DELETE'])
+@login_required
+def delete_comment(comment_id):
+    conn = get_db_connection()
+    comment = conn.execute('SELECT * FROM comments WHERE id = ?', (comment_id,)).fetchone()
+    if not comment:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+
+    if current_user.role != 'admin' and current_user.id != comment['user_id']:
+        conn.close()
+        return jsonify({'error': '403'}), 403
+
+    conn.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Deleted'})
 
 
 @views.route('/api/like/<int:id>', methods=['POST'])
