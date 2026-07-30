@@ -4,7 +4,7 @@ from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from .models import get_db_connection, User, optimize_image, allowed_file
+from .models import get_db_connection, User, save_image, allowed_file
 
 auth = Blueprint('auth', __name__)
 
@@ -24,11 +24,6 @@ def signup():
             flash('Mật khẩu phải có ít nhất 6 ký tự!')
             return redirect(url_for('auth.signup'))
 
-        # LƯU Ý BẢO MẬT: KHÔNG tự phong role admin/photographer dựa theo
-        # username khi đăng ký công khai — bất kỳ ai cũng có thể tự nhận
-        # quyền quản trị bằng cách đăng ký đúng username đó.
-        # Mọi tài khoản mới đều là 'user'. Nâng quyền admin/photographer
-        # thủ công bằng script create_admin.py hoặc từ trang /admin.
         role = 'user'
 
         conn = get_db_connection()
@@ -89,15 +84,11 @@ def profile():
             if not allowed_file(avatar_file.filename):
                 flash('Định dạng ảnh không được hỗ trợ!')
             else:
-                filename = secure_filename(f"avatar_{current_user.id}_{avatar_file.filename}")
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                success, result = optimize_image(avatar_file, file_path)
-                if not success:
-                    flash(f'Không xử lý được ảnh này ({result}). Hãy thử ảnh JPG/PNG khác.')
+                result = save_image(avatar_file, f"avatar_{current_user.id}_{avatar_file.filename}", current_app.config['UPLOAD_FOLDER'])
+                if not result['success']:
+                    flash(f"Không xử lý được ảnh này ({result['error']}). Hãy thử ảnh JPG/PNG khác.")
                 else:
-                    saved_filename = os.path.basename(result)
-                    db_avatar_path = f"/static/uploads/{saved_filename}"
-                    conn.execute('UPDATE users SET avatar = ? WHERE id = ?', (db_avatar_path, current_user.id))
+                    conn.execute('UPDATE users SET avatar = ? WHERE id = ?', (result['path'], current_user.id))
 
         conn.commit()
         flash('Cập nhật thành công!')
