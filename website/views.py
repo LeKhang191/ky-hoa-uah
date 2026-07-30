@@ -156,11 +156,30 @@ def get_announcements():
 def create_announcement():
     if current_user.role != 'admin':
         return jsonify({'error': '403'}), 403
-    data = request.json or {}
+
+    title = request.form.get('title')
+    content = request.form.get('content')
+    event_time = request.form.get('event_time')
+    location = request.form.get('location')
+    file = request.files.get('file')
+
+    if not title or not content:
+        return jsonify({'error': 'Thiếu tiêu đề hoặc nội dung'}), 400
+
+    image_path, image_public_id = None, None
+    if file and file.filename != '':
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Định dạng ảnh không được hỗ trợ'}), 400
+        result = save_image(file, f"notice_{file.filename}", current_app.config['UPLOAD_FOLDER'])
+        if not result['success']:
+            return jsonify({'error': f"Không xử lý được ảnh này ({result['error']})"}), 400
+        image_path, image_public_id = result['path'], result['public_id']
+
     conn = get_db_connection()
     conn.execute(
-        'INSERT INTO announcements (title, content, event_time, location) VALUES (?, ?, ?, ?)',
-        (data.get('title'), data.get('content'), data.get('event_time'), data.get('location')),
+        'INSERT INTO announcements (title, content, event_time, location, image_path, image_public_id) '
+        'VALUES (?, ?, ?, ?, ?, ?)',
+        (title, content, event_time, location, image_path, image_public_id),
     )
     conn.commit()
     conn.close()
@@ -173,6 +192,9 @@ def delete_announcement(id):
     if current_user.role != 'admin':
         return jsonify({'error': '403'}), 403
     conn = get_db_connection()
+    notice = conn.execute('SELECT * FROM announcements WHERE id = ?', (id,)).fetchone()
+    if notice and notice['image_path']:
+        delete_image(notice['image_path'], notice['image_public_id'] if 'image_public_id' in notice.keys() else None)
     conn.execute('DELETE FROM announcements WHERE id = ?', (id,))
     conn.commit()
     conn.close()

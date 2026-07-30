@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import sqlite3
 from flask_login import UserMixin
 from PIL import Image
@@ -10,16 +11,22 @@ DB_PATH = os.path.join(ROOT_DIR, 'my_database.db')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# --- Cloudinary (lưu ảnh vĩnh viễn, không mất khi Render restart) ---
-# Chỉ kích hoạt nếu có biến môi trường CLOUDINARY_URL (đặt trên Render, KHÔNG hardcode ở đây).
-# Nếu chưa cấu hình, hệ thống tự động lưu ảnh vào ổ đĩa local như cũ (vẫn hoạt động bình thường,
-# chỉ là ảnh sẽ mất khi Render free tier restart).
+# --- Cloudinary (lưu ảnh vĩnh viễn) ---
 CLOUDINARY_ENABLED = bool(os.environ.get('CLOUDINARY_URL'))
 if CLOUDINARY_ENABLED:
     import cloudinary
     import cloudinary.uploader
-    # cloudinary.config() tự đọc CLOUDINARY_URL từ biến môi trường, không cần truyền tay.
     cloudinary.config(secure=True)
+
+# --- Database: Supabase/PostgreSQL (production, vĩnh viễn) hoặc SQLite (local dev) ---
+# Có biến môi trường DATABASE_URL (Supabase) -> dùng Postgres.
+# Không có -> tự động dùng file my_database.db như cũ (không ảnh hưởng lúc code ở máy nhà).
+DATABASE_URL = os.environ.get('DATABASE_URL')
+IS_POSTGRES = bool(DATABASE_URL)
+
+if IS_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
 
 
 class User(UserMixin):
@@ -31,87 +38,191 @@ class User(UserMixin):
         self.avatar = avatar
 
 
+class _DBConnection:
+    """
+    Lớp bọc để website/views.py và website/auth.py có thể dùng chung 1 cách viết
+    conn.execute(query, params) / conn.commit() / conn.close() với dấu '?' quen thuộc,
+    bất kể phía dưới đang chạy SQLite (dev) hay PostgreSQL (Supabase, production).
+    KHÔNG cần sửa gì ở các file views.py/auth.py/admin_setup.py.
+    """
+    def __init__(self, raw_conn, is_postgres):
+        self._conn = raw_conn
+        self.is_postgres = is_postgres
+
+    def execute(self, query, params=()):
+        if self.is_postgres:
+            query = query.replace('?', '%s')
+            cur = self._conn.cursor()
+            cur.execute(query, params)
+            return cur
+        else:
+            return self._conn.execute(query, params)
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+    def rollback(self):
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
+
+
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA foreign_keys = ON')
-    return conn
+    if IS_POSTGRES:
+        raw = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        return _DBConnection(raw, True)
+    else:
+        raw = sqlite3.connect(DB_PATH)
+        raw.row_factory = sqlite3.Row
+        raw.execute('PRAGMA foreign_keys = ON')
+        return _DBConnection(raw, False)
 
 
 def init_db():
     """Tạo các bảng nếu chưa tồn tại. Gọi an toàn nhiều lần (idempotent)."""
     conn = get_db_connection()
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        email TEXT,
-        fullname TEXT,
-        role TEXT DEFAULT 'user',
-        avatar TEXT
-    )''')
+    if IS_POSTGRES:
+        conn.execute('''CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            fullname TEXT,
+            role TEXT DEFAULT 'user',
+            avatar TEXT
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS artworks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        artist TEXT NOT NULL,
-        description TEXT,
-        image_path TEXT NOT NULL,
-        image_public_id TEXT,
-        likes INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'pending',
-        user_id INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS artworks (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            artist TEXT NOT NULL,
+            description TEXT,
+            image_path TEXT NOT NULL,
+            image_public_id TEXT,
+            likes INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'pending',
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS activities (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        image_path TEXT NOT NULL,
-        image_public_id TEXT,
-        album_id INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS activities (
+            id SERIAL PRIMARY KEY,
+            image_path TEXT NOT NULL,
+            image_public_id TEXT,
+            album_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS announcements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        content TEXT NOT NULL,
-        event_time TEXT,
-        location TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS announcements (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            event_time TEXT,
+            location TEXT,
+            image_path TEXT,
+            image_public_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS likes (
-        user_id INTEGER NOT NULL,
-        artwork_id INTEGER NOT NULL,
-        PRIMARY KEY (user_id, artwork_id)
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS likes (
+            user_id INTEGER NOT NULL,
+            artwork_id INTEGER NOT NULL,
+            PRIMARY KEY (user_id, artwork_id)
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS albums (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        cover_image TEXT,
-        cover_public_id TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS albums (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            cover_image TEXT,
+            cover_public_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
 
-    conn.execute('''CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        artwork_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS comments (
+            id SERIAL PRIMARY KEY,
+            artwork_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.commit()
+    else:
+        conn.execute('''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            fullname TEXT,
+            role TEXT DEFAULT 'user',
+            avatar TEXT
+        )''')
 
-    # Nâng cấp nhẹ nhàng cho DB đã tồn tại từ trước (không có cột image_public_id/cover_public_id)
-    for table, col in [('artworks', 'image_public_id'), ('activities', 'image_public_id'), ('albums', 'cover_public_id')]:
-        try:
-            conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} TEXT')
-        except sqlite3.OperationalError:
-            pass  # cột đã tồn tại rồi
+        conn.execute('''CREATE TABLE IF NOT EXISTS artworks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            artist TEXT NOT NULL,
+            description TEXT,
+            image_path TEXT NOT NULL,
+            image_public_id TEXT,
+            likes INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'pending',
+            user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
 
-    conn.commit()
+        conn.execute('''CREATE TABLE IF NOT EXISTS activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            image_path TEXT NOT NULL,
+            image_public_id TEXT,
+            album_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        conn.execute('''CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            event_time TEXT,
+            location TEXT,
+            image_path TEXT,
+            image_public_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        conn.execute('''CREATE TABLE IF NOT EXISTS likes (
+            user_id INTEGER NOT NULL,
+            artwork_id INTEGER NOT NULL,
+            PRIMARY KEY (user_id, artwork_id)
+        )''')
+
+        conn.execute('''CREATE TABLE IF NOT EXISTS albums (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            cover_image TEXT,
+            cover_public_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        conn.execute('''CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            artwork_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+
+        for table, col in [('artworks', 'image_public_id'), ('activities', 'image_public_id'), ('albums', 'cover_public_id'), ('announcements', 'image_path'), ('announcements', 'image_public_id')]:
+            try:
+                conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} TEXT')
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+
     conn.close()
 
 
@@ -120,7 +231,6 @@ def allowed_file(filename):
 
 
 def _process_image(file_stream, max_width=1200, quality=85):
-    """Resize + nén ảnh, trả về (buffer_bytes, error). Không lưu ra đâu cả, chỉ xử lý trong bộ nhớ."""
     try:
         img = Image.open(file_stream)
         img.load()
@@ -140,21 +250,13 @@ def _process_image(file_stream, max_width=1200, quality=85):
 
 
 def save_image(file_stream, filename_hint, upload_folder):
-    """
-    Xử lý + lưu ảnh, tự động chọn Cloudinary (nếu đã cấu hình) hoặc ổ đĩa local.
-    Trả về dict: {'success': bool, 'path': str, 'public_id': str|None, 'error': str|None}
-    'path' là giá trị lưu vào cột image_path trong DB (URL đầy đủ nếu Cloudinary, hoặc
-    '/static/uploads/xxx.jpg' nếu lưu local).
-    """
     buf, err = _process_image(file_stream)
     if buf is None:
         return {'success': False, 'path': None, 'public_id': None, 'error': err}
 
     if CLOUDINARY_ENABLED:
         try:
-            result = cloudinary.uploader.upload(
-                buf, folder="ky-hoa-uah", resource_type="image"
-            )
+            result = cloudinary.uploader.upload(buf, folder="ky-hoa-uah", resource_type="image")
             return {'success': True, 'path': result['secure_url'], 'public_id': result['public_id'], 'error': None}
         except Exception as e:
             return {'success': False, 'path': None, 'public_id': None, 'error': f"Loi Cloudinary: {e}"}
@@ -172,7 +274,6 @@ def save_image(file_stream, filename_hint, upload_folder):
 
 
 def delete_image(image_path, public_id=None):
-    """Xóa ảnh khỏi Cloudinary (nếu có public_id) hoặc khỏi ổ đĩa local."""
     if public_id and CLOUDINARY_ENABLED:
         try:
             cloudinary.uploader.destroy(public_id)
@@ -180,7 +281,6 @@ def delete_image(image_path, public_id=None):
             pass
     elif image_path and image_path.startswith('/static/uploads/'):
         try:
-            local_path = os.path.join(CURRENT_DIR, image_path.lstrip('/').replace('static/', 'static/', 1))
             local_path = os.path.join(CURRENT_DIR, 'static', 'uploads', os.path.basename(image_path))
             os.remove(local_path)
         except Exception:

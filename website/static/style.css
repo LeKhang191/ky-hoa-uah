@@ -1056,7 +1056,7 @@ footer p {
 }
 
 .gallery-content {
-    flex: 2;
+    flex: 1;
     width: 100%;
 }
 

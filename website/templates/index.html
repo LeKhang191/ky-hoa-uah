@@ -109,8 +109,13 @@
 
     <main id="gallery" class="main-layout">
         <aside class="activity-sidebar">
-            <div class="sidebar-header" style="border-bottom: 3px solid #000; margin-bottom: 15px;">
-                <h3>KHOẢNH KHẮC</h3>
+            <div class="sidebar-header" style="border-bottom: 3px solid #000; margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">KHOẢNH KHẮC</h3>
+                {% if current_user.is_authenticated and current_user.role in ['admin', 'photographer'] %}
+                <button class="btn-mini-add" onclick="document.getElementById('createAlbumModal').style.display='flex'" style="padding: 5px 12px; font-size: 0.85em; cursor: pointer; background: #000; color: #fff; border: none;">
+                    <i class="fa fa-plus"></i> Tạo Album
+                </button>
+                {% endif %}
             </div>
             <p style="color:#666; font-size:0.9em; font-style:italic; margin-bottom:20px;">Hoạt động thực chiến của CLB</p>
 
@@ -173,8 +178,23 @@
 
     <div id="artModal" class="modal">
         <span class="close-btn" onclick="closeModal()">&times;</span>
-        <img class="modal-content" id="modalImage">
-        <div id="modalCaption"></div>
+        <div class="modal-content" style="max-width: 700px; background:white; padding:20px; max-height:90vh; overflow-y:auto;">
+            <img id="modalImage" style="display:block; max-width:100%; max-height:60vh; object-fit:contain; margin:0 auto;">
+            <div id="modalCaption"></div>
+
+            <div id="commentSection" style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
+                <h4 style="margin-bottom:10px;"><i class="fa fa-comments"></i> Bình luận</h4>
+                <div id="commentList" style="max-height:250px; overflow-y:auto; margin-bottom:12px;"></div>
+                {% if current_user.is_authenticated %}
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="commentInput" placeholder="Viết bình luận..." maxlength="500" onkeydown="if(event.key==='Enter') submitComment()" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <button onclick="submitComment()" style="padding:10px 16px; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer;">Gửi</button>
+                </div>
+                {% else %}
+                <p style="color:#888; font-size:0.9em;"><a href="{{ url_for('auth.login') }}">Đăng nhập</a> để bình luận.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <div id="userEditModal" class="modal">
@@ -200,6 +220,11 @@
                 <label>Thời gian:</label>
                 <input type="datetime-local" id="notTime" style="text-align:center;">
                 <input type="text" id="notLoc" placeholder="Địa điểm">
+                <label class="custom-file-upload">
+                    <i class="fa fa-image"></i> Chọn ảnh minh hoạ (không bắt buộc)
+                    <input type="file" id="notFile" accept="image/*" style="display:none;">
+                </label>
+                <span id="notFileName" style="font-size:0.85em; color:#666;">Chưa chọn ảnh</span>
                 <button class="btn-upload" onclick="submitNotice()">ĐĂNG TIN</button>
             </div>
         </div>
@@ -229,6 +254,8 @@
             <span class="close-btn" onclick="document.getElementById('noticeDetailModal').style.display='none'">&times;</span>
 
             <h2 id="ndetailTitle" style="font-size: 1.8em; margin-bottom: 10px; color: #000; text-transform: uppercase;"></h2>
+
+            <img id="ndetailImage" style="display:none; width:100%; max-height:300px; object-fit:cover; margin-bottom:15px; border-radius:6px;">
 
             <div style="color: #666; font-size: 0.9em; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
                 <span id="ndetailTime"><i class="fa fa-clock"></i> </span>

@@ -1,4 +1,5 @@
 let artworks = [];
+let currentArtworkId = null;
 let allNotices = [];
 let spamCount = 0;
 let spamResetTimer = null;
@@ -52,7 +53,7 @@ function renderGallery(data) {
         card.classList.add('artwork-card');
 
         let ownerControls = '';
-        if ((typeof IS_ADMIN !== 'undefined' && IS_ADMIN) || 
+        if ((typeof IS_ADMIN !== 'undefined' && IS_ADMIN) ||
             (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID && CURRENT_USER_ID === artwork.owner_id)) {
             ownerControls = `
                 <div class="owner-controls">
@@ -106,9 +107,13 @@ async function fetchNotices() {
                 delBtn = `<button class="btn-del-mini" onclick="event.stopPropagation(); deleteNotice(${notice.id})"><i class="fa fa-times"></i></button>`;
             }
             const dateStr = notice.event_time ? new Date(notice.event_time).toLocaleDateString('vi-VN') : 'Mới';
+            const thumb = notice.image_path
+                ? `<img src="${notice.image_path}" style="width:100%; height:120px; object-fit:cover; border-radius:4px; margin-bottom:10px;">`
+                : '';
             container.innerHTML += `
                 <div class="notice-card-compact" onclick="openNoticeDetail(${notice.id})">
                     ${delBtn}
+                    ${thumb}
                     <h3>${notice.title}</h3>
                     <div class="notice-summary">${notice.content}</div>
                     <div style="font-size: 0.8em; color: #999; margin-top: 15px;">
@@ -125,6 +130,13 @@ function openNoticeDetail(id) {
     if (!notice) return;
     document.getElementById('ndetailTitle').textContent = notice.title;
     document.getElementById('ndetailContent').textContent = notice.content;
+    const imgEl = document.getElementById('ndetailImage');
+    if (notice.image_path) {
+        imgEl.src = notice.image_path;
+        imgEl.style.display = 'block';
+    } else {
+        imgEl.style.display = 'none';
+    }
     const time = notice.event_time ? new Date(notice.event_time).toLocaleString('vi-VN') : 'Chưa xác định';
     document.getElementById('ndetailTime').innerHTML = `<i class="fa fa-clock"></i> ${time}`;
     document.getElementById('ndetailLoc').innerHTML = `<i class="fa fa-map-marker-alt"></i> ${notice.location || 'Online'}`;
@@ -134,21 +146,42 @@ function openNoticeDetail(id) {
 function openNoticeModal() { document.getElementById('noticeModal').style.display = 'flex'; }
 function closeNoticeModal() { document.getElementById('noticeModal').style.display = 'none'; }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const notFileInput = document.getElementById('notFile');
+    if (notFileInput) {
+        notFileInput.addEventListener('change', () => {
+            const nameSpan = document.getElementById('notFileName');
+            nameSpan.textContent = notFileInput.files.length > 0 ? notFileInput.files[0].name : 'Chưa chọn ảnh';
+        });
+    }
+});
+
 async function submitNotice() {
-    const data = {
-        title: document.getElementById('notTitle').value,
-        content: document.getElementById('notContent').value,
-        event_time: document.getElementById('notTime').value,
-        location: document.getElementById('notLoc').value
-    };
-    if(!data.title || !data.content) { alert("Nhập tiêu đề và nội dung!"); return; }
+    const title = document.getElementById('notTitle').value;
+    const content = document.getElementById('notContent').value;
+    if (!title || !content) { alert("Nhập tiêu đề và nội dung!"); return; }
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('content', content);
+    formData.append('event_time', document.getElementById('notTime').value);
+    formData.append('location', document.getElementById('notLoc').value);
+    const fileInput = document.getElementById('notFile');
+    if (fileInput.files.length > 0) formData.append('file', fileInput.files[0]);
+
     try {
         const res = await fetch('/api/announcement/create', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
+            body: formData
         });
-        if(res.ok) { alert("Đăng tin thành công!"); closeNoticeModal(); fetchNotices(); }
+        if (res.ok) {
+            alert("Đăng tin thành công!");
+            closeNoticeModal();
+            fetchNotices();
+        } else {
+            const data = await res.json();
+            alert(data.error || "Lỗi khi đăng tin.");
+        }
     } catch(e) { alert("Lỗi kết nối"); }
 }
 
@@ -227,10 +260,10 @@ async function submitPhotosToAlbum() {
     for(let i = 0; i < files.length; i++) formData.append('files', files[i]);
 
     const res = await fetch('/api/activity/upload', { method: 'POST', body: formData });
-    if(res.ok) { 
-        alert("Đã thêm ảnh vào Album!"); 
-        loadPhotosForAlbum(id); 
-        document.getElementById('albumPhotos').value = ""; 
+    if(res.ok) {
+        alert("Đã thêm ảnh vào Album!");
+        loadPhotosForAlbum(id);
+        document.getElementById('albumPhotos').value = "";
     }
 }
 
@@ -271,6 +304,8 @@ function setupEventListeners() {
                     modalImage.src = art.image_path;
                     modalCaption.innerHTML = `<h3>${art.title}</h3><p>${art.artist}</p><p>${art.description}</p>`;
                     modal.style.display = "block";
+                    currentArtworkId = art.id;
+                    loadComments(art.id);
                 }
             }
         });
@@ -299,7 +334,7 @@ function closeActivityModal() {
     if (modal) modal.style.display = 'none';
 }
 
-//HÀM UPLOAD TRANH 
+//HÀM UPLOAD TRANH
 async function uploadImage() {
     const fileInput = document.getElementById('imageInput');
     const titleInput = document.getElementById('titleInput');
@@ -332,16 +367,16 @@ async function uploadImage() {
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         if (res.ok) {
             alert("Đăng thành công! (Chờ admin duyệt)");
-            location.reload(); 
+            location.reload();
         } else {
             const err = await res.json();
             alert("Lỗi upload: " + (err.error || "Không xác định"));
         }
-    } catch (e) { 
-        alert("Lỗi kết nối!"); 
+    } catch (e) {
+        alert("Lỗi kết nối!");
         console.error(e);
-    } finally { 
-        if(btn) { btn.textContent = "ĐĂNG TRIỂN LÃM"; btn.disabled = false; } 
+    } finally {
+        if(btn) { btn.textContent = "ĐĂNG TRIỂN LÃM"; btn.disabled = false; }
     }
 }
 
@@ -369,7 +404,7 @@ async function submitUserEdit() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
-        if(res.ok) { alert("Cập nhật thành công!"); closeUserEdit(); fetchArtworks(); } 
+        if(res.ok) { alert("Cập nhật thành công!"); closeUserEdit(); fetchArtworks(); }
         else { alert("Lỗi quyền hạn!"); }
     } catch(e) { alert("Lỗi kết nối"); }
 }
@@ -379,7 +414,7 @@ async function deleteArtwork(id, event) {
     if (!confirm("Xóa tranh này?")) return;
     try {
         const res = await fetch(`/api/delete/${id}`, { method: 'DELETE' });
-        if(res.ok) { alert("Đã xóa!"); fetchArtworks(); } 
+        if(res.ok) { alert("Đã xóa!"); fetchArtworks(); }
         else { alert("Không có quyền xóa!"); }
     } catch(err) { alert("Lỗi kết nối"); }
 }
@@ -387,14 +422,14 @@ async function deleteArtwork(id, event) {
 async function handleLike(id, btnElement) {
     const btn = btnElement.closest('.btn-like');
     const countSpan = btn.nextElementSibling;
-    
+
     spamCount++;
     clearTimeout(spamResetTimer);
     spamResetTimer = setTimeout(() => { spamCount = 0; }, 2000);
-    if (spamCount >= 10) { 
+    if (spamCount >= 10) {
         document.getElementById('spamPopup').classList.add('show');
         setTimeout(() => { document.getElementById('spamPopup').classList.remove('show'); }, 3000);
-        spamCount = 0; 
+        spamCount = 0;
     }
 
     let currentCount = parseInt(countSpan.textContent) || 0;
@@ -412,9 +447,81 @@ async function handleShare(title, artist, imagePath) {
     const fullUrl = window.location.origin + imagePath;
     if (navigator.share) { try { await navigator.share({ title: title, text: artist, url: fullUrl }); } catch (err) {} }
     else {
-        try { await navigator.clipboard.writeText(fullUrl); alert("Đã copy link!"); } 
+        try { await navigator.clipboard.writeText(fullUrl); alert("Đã copy link!"); }
         catch (err) {}
     }
+}
+
+// 4. BÌNH LUẬN TRANH
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+async function loadComments(artworkId) {
+    const list = document.getElementById('commentList');
+    if (!list) return;
+    list.innerHTML = '<p style="color:#999; text-align:center;">Đang tải bình luận...</p>';
+    try {
+        const res = await fetch(`/api/artwork/${artworkId}/comments`);
+        const comments = await res.json();
+        if (comments.length === 0) {
+            list.innerHTML = '<p style="color:#999; text-align:center;">Chưa có bình luận nào.</p>';
+            return;
+        }
+        list.innerHTML = comments.map(c => {
+            const canDelete = (typeof IS_ADMIN !== 'undefined' && IS_ADMIN) ||
+                (typeof CURRENT_USER_ID !== 'undefined' && CURRENT_USER_ID === c.user_id);
+            const avatar = c.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.fullname)}&size=64`;
+            return `
+                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                    <img src="${avatar}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+                    <div style="flex:1; background:#f5f5f5; border-radius:10px; padding:8px 12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size:0.9em;">${escapeHtml(c.fullname)}</strong>
+                            ${canDelete ? `<i class="fa fa-trash" style="cursor:pointer; color:#c0392b; font-size:0.85em;" onclick="deleteComment(${c.id}, ${artworkId})"></i>` : ''}
+                        </div>
+                        <p style="margin:4px 0 0; word-break:break-word;">${escapeHtml(c.content)}</p>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = '<p style="color:red; text-align:center;">Không tải được bình luận.</p>';
+    }
+}
+
+async function submitComment() {
+    const input = document.getElementById('commentInput');
+    const content = input.value.trim();
+    if (!content || !currentArtworkId) return;
+
+    try {
+        const res = await fetch(`/api/artwork/${currentArtworkId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content }),
+        });
+        if (res.ok) {
+            input.value = '';
+            loadComments(currentArtworkId);
+        } else if (res.status === 401) {
+            if (confirm("Cần đăng nhập để bình luận!")) location.href = "/login";
+        } else {
+            const data = await res.json();
+            alert(data.error || "Lỗi khi gửi bình luận.");
+        }
+    } catch (e) {
+        alert("Lỗi kết nối.");
+    }
+}
+
+async function deleteComment(commentId, artworkId) {
+    if (!confirm("Xóa bình luận này?")) return;
+    try {
+        const res = await fetch(`/api/comment/${commentId}`, { method: 'DELETE' });
+        if (res.ok) loadComments(artworkId);
+    } catch (e) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
