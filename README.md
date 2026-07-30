@@ -1,43 +1,42 @@
-# UAH - KÝ HỌA THỰC CHIẾN
+# UAH - SKETCH CLUB
 
-Kho lưu trữ mã nguồn của website **CLB Ký họa Thực chiến - Đại học Kiến trúc TP.HCM (UAH)**.
-
----
-
-## Tính năng chính
-- **Triển lãm trực tuyến**: Trưng bày các tác phẩm ký họa mới nhất của thành viên.
-- **Bảng tin CLB**: Cập nhật thông báo về các buổi offline và sự kiện thực chiến.
-- **Khoảnh khắc sinh hoạt**: Hệ thống Album lưu trữ hình ảnh hoạt động thực tế.
-- **Hệ thống Upload riêng biệt**: 
-  - Trang đăng ký họa chuyên nghiệp với khung kéo thả ảnh.
-  - Trang đăng ảnh sinh hoạt hỗ trợ chọn nhiều ảnh cùng lúc cho Admin/Photographer.
-- **Quản lý thông minh**: Hệ thống duyệt tranh, quản lý Album dành riêng cho ban điều hành.
+Source code repository for the website of **Sketch Club - University of Architecture Ho Chi Minh City (UAH)**.
 
 ---
 
-## Công nghệ 
+## Key Features
+- **Online Exhibition**: Showcasing the latest sketch artworks by members.
+- **Club News**: Updating announcements about offline meetups and field sketching events.
+- **Activity Gallery**: Album system storing photos of real-world activities.
+- **Dedicated Upload System**: 
+  - Professional sketch submission page with drag-and-drop support.
+  - Activity photo submission page supporting multiple photo uploads at once for Admins/Photographers.
+- **Smart Management**: Artwork approval system and Album management tailored for the management board.
+
+---
+
+## Tech Stack
 - **Backend**: Python (Flask Framework).
 - **Frontend**: HTML5, CSS3, JavaScript (ES6).
-- **Database**: SQLite (Quản lý người dùng, tác phẩm và thông báo).
+- **Database**: SQLite (Manages users, artworks, and announcements).
 - **Hosting**: PythonAnywhere.
 
 ---
 
-## Cấu trúc thư mục
-- `/static`: Chứa file CSS, JavaScript, hình ảnh giao diện và ảnh upload.
-- `/templates`: Chứa các file giao diện HTML (index, upload, activity_upload,...).
-- `app.py`: File xử lý logic chính của ứng dụng.
+## Directory Structure
+- `/static`: Contains CSS, JavaScript files, UI images, and uploaded photos.
+- `/templates`: Contains HTML template files (index, upload, activity_upload,...).
+- `app.py`: Main application logic file.
 
 ---
 
-## Tác giả
-- **Lê Khang** (LeKhang191).
-- Dự án được phát triển với mục đích hỗ trợ hoạt động cho CLB Ký họa UAH.
+## Author
+- **Le Khang** (LeKhang191).
+- Developed to support the activities of UAH Sketch Club.
 
 ---
 
-## Liên hệ
+## Contact
 - **Facebook**: [UAH - Ký họa Thực chiến](https://www.facebook.com/profile.php?id=61571564265216).
-- **Số điện thoại**: 0797.369.038.
 
 &copy; 2025 UAH
