@@ -26,6 +26,56 @@ section { padding:40px 0; }
 h2 { font-weight:500; font-size:18px; letter-spacing:.06em; margin:0 0 18px; padding-bottom:10px; border-bottom:1px solid var(--ink); }
 .grid { display:grid; gap:20px; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); }
 .gallery-pagination { margin-top:20px; gap:12px; }
+.gallery-pagination a.btn:not(.ghost):is(:hover, :focus-visible) { color:#fff; background:#343434; }
+.gallery-page, .artwork-page { padding-top:32px; }
+.gallery-page h1, .artwork-info h1 {
+  margin:0 0 18px; font-size:clamp(26px, 4vw, 42px); line-height:1.16;
+  font-weight:500; letter-spacing:-.035em; overflow-wrap:anywhere;
+}
+.gallery-filters { gap:8px; letter-spacing:normal; }
+.gallery-filters a { padding:5px 13px; border-radius:999px; }
+.gallery-masonry {
+  --gallery-gap:12px;
+  display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--gallery-gap);
+  align-items:start;
+}
+.gallery-masonry.is-masonry { grid-auto-rows:8px; grid-auto-flow:dense; row-gap:0; }
+.gallery-card { min-width:0; scroll-margin-top:16px; }
+.gallery-card a { display:block; padding-bottom:var(--gallery-gap); text-decoration:none; }
+.gallery-card img {
+  width:100%; height:auto; max-height:520px; aspect-ratio:auto 4/5; object-fit:contain;
+  border-radius:14px; background:#f1eee9;
+}
+.gallery-card-caption { padding:7px 2px 0; overflow-wrap:anywhere; }
+.gallery-card h3 { margin:0; font-size:14px; line-height:1.35; font-weight:500; }
+.gallery-card small { color:var(--mute); font-size:12px; }
+.gallery-card a:hover h3 { text-decoration:underline; text-underline-offset:3px; }
+.artwork-back { display:inline-block; margin-bottom:18px; text-underline-offset:3px; }
+.artwork-detail {
+  display:grid; grid-template-areas:"image" "info"; border:1px solid var(--line);
+  border-radius:18px; background:var(--paper);
+}
+.artwork-image {
+  grid-area:image; margin:0; display:grid; place-items:center; background:#f6f3ee;
+  border-radius:17px 17px 0 0; min-width:0;
+}
+.artwork-image img { width:auto; height:auto; max-height:min(780px, 85vh); object-fit:contain; }
+.artwork-info { grid-area:info; padding:clamp(18px, 4vw, 36px); min-width:0; }
+.artwork-info h1 { margin:4px 0 10px; }
+.artwork-info .gallery-filters { margin:20px 0 0; }
+.artwork-author, .artwork-visibility { color:var(--mute); overflow-wrap:anywhere; }
+.artwork-description { white-space:pre-wrap; overflow-wrap:anywhere; }
+@media (max-width:640px) {
+  body:has(.gallery-page, .artwork-page) header.top .wrap {
+    height:auto; flex-wrap:wrap; gap:8px; padding-block:10px;
+  }
+}
+@media (min-width:600px) { .gallery-masonry { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+@media (min-width:760px) {
+  .artwork-detail { grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); grid-template-areas:"image info"; }
+  .artwork-image { border-radius:17px 0 0 17px; }
+}
+@media (min-width:900px) { .gallery-masonry { --gallery-gap:18px; grid-template-columns:repeat(4, minmax(0, 1fr)); } }
 .card img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#f1f1f1; }
 .card h3 { margin:8px 0 0; font-size:15px; font-weight:500; }
 .card small, .muted { color:var(--mute); }

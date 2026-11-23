@@ -27,8 +27,9 @@ def move(public_id, from_type, to_type):
     cloudinary.uploader.rename(public_id, public_id, type=from_type, to_type=to_type, overwrite=True)
 
 
-def url(public_id, delivery_type):
+def url(public_id, delivery_type, *, width=None):
+    resize = {"width": width, "crop": "limit"} if width is not None and delivery_type == "upload" else {}
     result, _ = cloudinary.utils.cloudinary_url(
-        public_id, type=delivery_type, sign_url=delivery_type != "upload", secure=True, format="jpg"
+        public_id, type=delivery_type, sign_url=delivery_type != "upload", secure=True, format="jpg", **resize
     )
     return result

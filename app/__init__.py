@@ -43,8 +43,10 @@ def create_app(test_config=None):
     cli.init_app(app)
 
     @app.template_filter("art_url")
-    def art_url(artwork):
-        return storage.url(artwork["public_id"], storage.DELIVERY_TYPE[artwork["visibility"]])
+    def art_url(artwork, width=None):
+        return storage.url(
+            artwork["public_id"], storage.DELIVERY_TYPE[artwork["visibility"]], width=width
+        )
 
     @app.template_filter("img_url")
     def img_url(public_id):

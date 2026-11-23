@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ artwork.title }} · UAH Ký họa thực chiến{% endblock %}
+{% block content %}
+<section class="artwork-page">
+  <a class="artwork-back" href="{{ gallery_url }}">← Trở lại trưng bày</a>
+  <article class="artwork-detail">
+    <header class="artwork-info">
+      {% if artwork.visibility == 'internal' %}<span class="artwork-visibility">Nội bộ</span>{% endif %}
+      <h1>{{ artwork.title }}</h1>
+      <p class="artwork-author">{{ artwork.author_name }}</p>
+      {% if artwork.description %}<p class="artwork-description">{{ artwork.description }}</p>{% endif %}
+      {% if tags %}
+        <nav class="chips gallery-filters" aria-label="Thẻ của tranh">
+          {% for tag in tags %}<a href="{{ url_for('gallery.gallery', tag=tag.id) }}">{{ tag.name }}</a>{% endfor %}
+        </nav>
+      {% endif %}
+    </header>
+    <figure class="artwork-image">
+      <img src="{{ artwork|art_url }}" alt="{{ artwork.title }}" decoding="async">
+    </figure>
+  </article>
+</section>
+{% endblock %}

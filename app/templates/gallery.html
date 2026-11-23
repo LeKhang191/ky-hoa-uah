@@ -1,16 +1,35 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card %}
+{% block title %}Trưng bày · UAH Ký họa thực chiến{% endblock %}
 {% block content %}
-<section>
-  <h2>Trưng bày</h2>
-  <div class="chips">
-    <a href="{{ url_for('gallery.gallery') }}" class="{{ 'on' if not active_tag }}">Tất cả</a>
-    {% for t in tags %}<a href="{{ url_for('gallery.gallery', tag=t.id) }}" class="{{ 'on' if active_tag == t.id|string }}">{{ t.name }}</a>{% endfor %}
-  </div>
-  <div class="grid">{% for a in artworks %}{{ card(a) }}{% else %}<p class="muted">Chưa có tranh nào.</p>{% endfor %}</div>
-  {% if has_cursor or next_cursor %}
+<section class="gallery-page">
+  <h1>Trưng bày</h1>
+  <nav class="chips gallery-filters" aria-label="Lọc theo thẻ">
+    <a href="{{ url_for('gallery.gallery') }}"{% if not active_tag %} class="on" aria-current="true"{% endif %}>Tất cả</a>
+    {% for t in tags %}
+      <a href="{{ url_for('gallery.gallery', tag=t.id) }}"{% if active_tag == t.id|string %} class="on" aria-current="true"{% endif %}>{{ t.name }}</a>
+    {% endfor %}
+  </nav>
+  {% if artworks %}
+    <div class="gallery-masonry" data-masonry>
+      {% for a in artworks %}
+        <article id="artwork-{{ a.id }}" class="gallery-card">
+          <a href="{{ url_for('gallery.artwork_detail', artwork_id=a.id, tag=active_tag, cursor=cursor) }}">
+            <img src="{{ a|art_url(480) }}" alt="" {% if loop.index > 4 %}loading="lazy"{% endif %} decoding="async">
+            <div class="gallery-card-caption">
+              <h3>{{ a.title }}</h3>
+              <small>{{ a.author_name }}{% if a.visibility == 'internal' %} · Nội bộ{% endif %}</small>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    </div>
+    <script defer src="{{ url_for('static', filename='gallery.js') }}"></script>
+  {% else %}
+    <p class="muted">Chưa có tranh nào.</p>
+  {% endif %}
+  {% if cursor or next_cursor %}
     <nav class="gallery-pagination" aria-label="Phân trang tranh">
-      {% if has_cursor %}<a class="btn ghost" href="{{ url_for('gallery.gallery', tag=active_tag) }}">Về đầu</a>{% endif %}
+      {% if cursor %}<a class="btn ghost" href="{{ url_for('gallery.gallery', tag=active_tag) }}">Về đầu</a>{% endif %}
       {% if next_cursor %}<a class="btn" rel="next" href="{{ url_for('gallery.gallery', tag=active_tag, cursor=next_cursor) }}">Xem thêm</a>{% endif %}
     </nav>
   {% endif %}

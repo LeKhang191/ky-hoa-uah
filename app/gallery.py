@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import db, images, storage
@@ -15,6 +15,14 @@ GALLERY_PAGE_SIZE = 24
 
 # Khách chỉ thấy tranh công khai; thành viên đăng nhập (kể cả break/former) thấy cả nội bộ.
 VISIBLE = """a.status = 'approved' AND a.deleted_at IS NULL AND (%(internal)s OR a.visibility = 'public')"""
+
+
+@bp.after_request
+def prevent_gallery_caching(response):
+    if request.endpoint in {"gallery.gallery", "gallery.artwork_detail"}:
+        response.cache_control.private = True
+        response.cache_control.no_store = True
+    return response
 
 
 def _parse_tags(form):
@@ -84,13 +92,7 @@ def gallery():
                 ORDER BY a.created_at DESC, a.id DESC
                 LIMIT %(limit)s
             )
-            SELECT a.*, p.full_name AS author_name,
-                   ARRAY(
-                       SELECT t.name FROM artwork_tags at
-                       JOIN tags t ON t.id = at.tag_id
-                       WHERE at.artwork_id = a.id
-                       ORDER BY t.type, t.name
-                   ) AS tag_names
+            SELECT a.*, p.full_name AS author_name
             FROM page a
             JOIN profiles p ON p.id = a.author_id
             ORDER BY a.created_at DESC, a.id DESC""",
@@ -111,17 +113,43 @@ def gallery():
             ORDER BY t.type, t.name""",
         params,
     )
-    response = make_response(render_template(
+    return render_template(
         "gallery.html",
         artworks=artworks,
         tags=tags,
         active_tag=tag_id,
         next_cursor=next_cursor,
-        has_cursor=cursor is not None,
-    ))
-    response.cache_control.private = True
-    response.cache_control.no_store = True
-    return response
+        cursor=cursor,
+    )
+
+
+@bp.route("/artworks/<uuid:artwork_id>")
+def artwork_detail(artwork_id):
+    artwork = db.row(
+        f"""SELECT a.id, a.title, a.description, a.public_id, a.visibility, p.full_name AS author_name
+            FROM artworks a
+            JOIN profiles p ON p.id = a.author_id
+            WHERE a.id = %(id)s AND {VISIBLE}""",
+        {"id": artwork_id, "internal": current_user.is_authenticated},
+    )
+    if artwork is None:
+        abort(404)
+
+    tags = db.rows(
+        """SELECT t.id, t.name
+           FROM artwork_tags at
+           JOIN tags t ON t.id = at.tag_id
+           WHERE at.artwork_id = %s
+           ORDER BY t.type, t.name""",
+        (artwork_id,),
+    )
+    gallery_url = url_for(
+        "gallery.gallery",
+        tag=request.args.get("tag"),
+        cursor=request.args.get("cursor"),
+        _anchor=f"artwork-{artwork_id}",
+    )
+    return render_template("artwork_detail.html", artwork=artwork, tags=tags, gallery_url=gallery_url)
 
 
 @bp.route("/albums/<uuid:album_id>")

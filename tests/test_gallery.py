@@ -92,6 +92,60 @@ def test_gallery_rejects_invalid_cursors(app, cursor):
     assert app.test_client().get("/gallery", query_string={"cursor": cursor}).status_code == 400
 
 
+def test_public_artwork_detail_shows_full_image_description_and_tags(app, db):
+    seed_gallery(db, 25)
+    artwork = db.execute(
+        "UPDATE artworks SET description = %s WHERE title = 'Tranh 1' RETURNING id",
+        ("Mô tả <b>tranh</b>",),
+    ).fetchone()["id"]
+    tag = db.execute("INSERT INTO tags (name, type) VALUES ('Hội An', 'location') RETURNING id").fetchone()["id"]
+    db.execute("INSERT INTO artwork_tags SELECT id, %s FROM artworks", (tag,))
+
+    guest = app.test_client()
+    first = guest.get(f"/gallery?tag={tag}").get_data(as_text=True)
+    second_url = next_gallery_url(first)
+    second = guest.get(second_url).get_data(as_text=True)
+    assert "c_limit,w_480" in second
+    detail_link = re.search(rf'href="(/artworks/{artwork}[^"]*)"', second)
+    assert detail_link
+
+    response = guest.get(unescape(detail_link[1]))
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert response.cache_control.private and response.cache_control.no_store
+    assert "<h1>Tranh 1</h1>" in html and "Họa sĩ" in html
+    assert "Mô tả &lt;b&gt;tranh&lt;/b&gt;" in html and "Hội An" in html
+    assert "public/1.jpg" in html and "c_limit,w_480" not in html and "original/1" not in html
+    assert f"{second_url}#artwork-{artwork}" in unescape(html)
+
+
+def test_artwork_detail_checks_visibility_for_every_visitor(app, admin_client, db):
+    seed_gallery(db, 4)
+    internal, pending, rejected, deleted = [
+        row["id"] for row in db.execute("SELECT id FROM artworks ORDER BY id")
+    ]
+    db.execute("UPDATE artworks SET visibility = 'internal' WHERE id = %s", (internal,))
+    db.execute("UPDATE artworks SET status = 'pending' WHERE id = %s", (pending,))
+    db.execute("UPDATE artworks SET status = 'rejected' WHERE id = %s", (rejected,))
+    db.execute("UPDATE artworks SET deleted_at = now() WHERE id = %s", (deleted,))
+
+    guest = app.test_client()
+    member = member_client(app, admin_client, "Lan", "lan@x.vn", status="former")
+    assert guest.get(f"/artworks/{internal}").status_code == 404
+    member_view = member.get(f"/artworks/{internal}")
+    assert member_view.status_code == 200
+    assert "/image/authenticated/" in member_view.get_data(as_text=True)
+    assert "c_limit,w_480" not in member.get("/gallery").get_data(as_text=True)
+
+    for client in (guest, member, admin_client):
+        for artwork_id in (pending, rejected, deleted):
+            hidden = client.get(f"/artworks/{artwork_id}")
+            assert hidden.status_code == 404 and hidden.cache_control.no_store
+
+    db.execute("UPDATE profiles SET is_locked = true WHERE email = 'lan@x.vn'")
+    assert member.get(f"/artworks/{internal}").status_code == 404
+
+
 def test_original_goes_private_untouched_public_copy_is_processed(app, admin_client, uploads, db):
     original = jpeg_bytes((3000, 2000))
     m = member_client(app, admin_client, "Lan", "lan@x.vn")
