@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}
+<section>
+  <h2>Đăng nhập</h2>
+  <form method="post" class="stack">{{ csrf() }}
+    <label>Email<input type="email" name="email" required autocomplete="username"></label>
+    <label>Mật khẩu<input type="password" name="password" required autocomplete="current-password"></label>
+    <button class="btn">ĐĂNG NHẬP</button>
+  </form>
+  <p class="muted">Lần đầu vào web, hoặc quên mật khẩu? <a href="{{ url_for('auth.activate') }}">Dùng mã kích hoạt</a> do ban chủ nhiệm gửi.</p>
+</section>
+{% endblock %}

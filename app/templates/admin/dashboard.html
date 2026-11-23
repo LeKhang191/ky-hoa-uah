@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}<section><h2>Quản trị</h2>{% include "admin/_nav.html" %}
+  <p>Tranh chờ duyệt: <strong>{{ pending }}</strong> {% if pending %}<a href="{{ url_for('admin.review') }}">Duyệt ngay</a>{% endif %}</p>
+  <table><tr><th>Trạng thái thành viên</th><th>Số lượng</th></tr>
+  {% for m in members %}<tr><td>{{ m.status }}</td><td>{{ m.n }}</td></tr>{% endfor %}</table>
+</section>{% endblock %}

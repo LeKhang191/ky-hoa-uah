@@ -1,0 +1,9 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro card(a) %}
+<article class="card">
+  <img src="{{ a|art_url }}" alt="{{ a.title }}" loading="lazy">
+  <h3>{{ a.title }}{% if a.visibility == 'internal' %}<span class="badge">Nội bộ</span>{% endif %}</h3>
+  <small>{{ a.author_name }}{% if a.tag_names %} · {{ a.tag_names|join(', ') }}{% endif %}</small>
+</article>
+{% endmacro %}

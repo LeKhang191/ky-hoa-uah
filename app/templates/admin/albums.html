@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}<section><h2>Album ảnh sinh hoạt</h2>{% include "admin/_nav.html" %}
+  <form method="post" enctype="multipart/form-data" class="stack" style="margin-bottom:28px">{{ csrf() }}
+    <label>Tên album<input name="title" required maxlength="120"></label>
+    <label>Ảnh bìa<input type="file" name="cover" accept="image/jpeg,image/png,image/webp" required></label>
+    <button class="btn">TẠO ALBUM</button>
+  </form>
+  {% for a in albums %}<div class="news-item"><a href="{{ url_for('gallery.album', album_id=a.id) }}"><strong>{{ a.title }}</strong></a>
+    <form method="post" action="{{ url_for('admin.add_photos', album_id=a.id) }}" enctype="multipart/form-data" style="margin-top:8px">{{ csrf() }}
+      <input type="file" name="files" multiple accept="image/jpeg,image/png,image/webp" required><button>Thêm ảnh</button></form></div>
+  {% else %}<p class="muted">Chưa có album.</p>{% endfor %}
+</section>{% endblock %}

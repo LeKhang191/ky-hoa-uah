@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}<section><h2>Thành viên</h2>{% include "admin/_nav.html" %}
+  <form method="post" action="{{ url_for('admin.create_member') }}" class="stack" style="margin-bottom:28px">{{ csrf() }}
+    <label>Họ tên hiển thị<input name="full_name" required maxlength="80"></label>
+    <label>Email<input type="email" name="email" required></label>
+    <label>Trạng thái<select name="status">{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select></label>
+    <button class="btn">TẠO TÀI KHOẢN + MÃ KÍCH HOẠT</button>
+  </form>
+  <div class="scroll"><table>
+    <tr><th>Tên</th><th>Email</th><th>Quyền</th><th>Trạng thái</th><th>Mật khẩu</th><th>Mã còn hạn</th><th></th></tr>
+    {% for m in members %}{% set me = m.id|string == current_user.id %}
+    <tr>
+      <td>{{ m.full_name }}{% if m.is_locked %}<span class="badge">Đã khóa</span>{% endif %}</td>
+      <td>{{ m.email }}</td><td>{{ m.role }}</td><td>{{ m.status }}</td>
+      <td>{{ 'đã đặt' if m.password_hash else 'chưa kích hoạt' }}</td><td>{{ m.live_codes }}</td>
+      <td>{% if not me %}
+        <form method="post" action="{{ url_for('admin.set_status', profile_id=m.id) }}">{{ csrf() }}
+          <select name="status">{% for s in statuses %}<option {{ 'selected' if s == m.status }}>{{ s }}</option>{% endfor %}</select><button>Đổi</button></form>
+        <form method="post" action="{{ url_for('admin.set_role', profile_id=m.id) }}">{{ csrf() }}
+          <input type="hidden" name="role" value="{{ 'member' if m.role == 'admin' else 'admin' }}"><button>{{ 'Thu quyền admin' if m.role == 'admin' else 'Cấp quyền admin' }}</button></form>
+        <form method="post" action="{{ url_for('admin.toggle_lock', profile_id=m.id) }}">{{ csrf() }}<button>{{ 'Mở khóa' if m.is_locked else 'Khóa' }}</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin.reissue_code', profile_id=m.id) }}">{{ csrf() }}<button>Cấp lại mã</button></form>
+        {% if m.live_codes %}<form method="post" action="{{ url_for('admin.revoke_code', profile_id=m.id) }}">{{ csrf() }}<button>Thu hồi mã</button></form>{% endif %}
+      </td>
+    </tr>{% endfor %}
+  </table></div>
+</section>{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}<section><h2>Nhật ký thao tác</h2>{% include "admin/_nav.html" %}
+  <div class="scroll"><table><tr><th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th></tr>
+  {% for l in logs %}<tr><td>{{ l.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ l.actor_name or 'CLI' }}</td><td>{{ l.action }}</td><td>{{ l.target_type or '' }}</td></tr>{% endfor %}
+  </table></div>
+</section>{% endblock %}

@@ -1,2 +1,5 @@
-my_database.db
 __pycache__/
+.env
+.venv/
+.pytest_cache/
+*.pyc

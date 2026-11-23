@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card %}
+{% block content %}
+<section>
+  <h2>Trưng bày</h2>
+  <div class="chips">
+    <a href="{{ url_for('gallery.gallery') }}" class="{{ 'on' if not active_tag }}">Tất cả</a>
+    {% for t in tags %}<a href="{{ url_for('gallery.gallery', tag=t.id) }}" class="{{ 'on' if active_tag == t.id|string }}">{{ t.name }}</a>{% endfor %}
+  </div>
+  <div class="grid">{% for a in artworks %}{{ card(a) }}{% else %}<p class="muted">Chưa có tranh nào.</p>{% endfor %}</div>
+  {% if not current_user.is_authenticated %}<p class="muted">Đăng nhập để xem thêm tranh lưu hành nội bộ.</p>{% endif %}
+</section>
+{% endblock %}
