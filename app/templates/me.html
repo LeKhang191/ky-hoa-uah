@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}
+<section>
+  <h2>Tranh của tôi</h2>
+  <div class="grid">
+  {% for a in artworks %}
+    <article class="card">
+      <img src="{{ a|art_url }}" alt="{{ a.title }}" loading="lazy">
+      <h3>{{ a.title }}
+        <span class="badge {{ 'pending' if a.status != 'approved' }}">{{ {'pending':'Chờ duyệt','approved':'Đã duyệt','rejected':'Bị từ chối'}[a.status] }}</span></h3>
+      {% if a.reject_reason %}<small>Lý do: {{ a.reject_reason }}</small><br>{% endif %}
+      <form method="post" action="{{ url_for('gallery.set_visibility', artwork_id=a.id) }}" style="display:inline">{{ csrf() }}
+        <input type="hidden" name="visibility" value="{{ 'internal' if a.visibility == 'public' else 'public' }}">
+        <button class="btn ghost">{{ 'Chuyển nội bộ' if a.visibility == 'public' else 'Chuyển công khai' }}</button></form>
+      <form method="post" action="{{ url_for('gallery.delete', artwork_id=a.id) }}" style="display:inline"
+            onsubmit="return confirm('Chuyển tranh này vào thùng rác?')">{{ csrf() }}<button class="btn ghost">Xóa</button></form>
+    </article>
+  {% else %}<p class="muted">Bạn chưa đăng tranh nào.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

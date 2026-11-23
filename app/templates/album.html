@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h2>{{ album.title }}</h2>
+  <div class="grid">{% for p in photos %}<article class="card"><img src="{{ p.image_path|img_url }}" alt="" loading="lazy"></article>
+  {% else %}<p class="muted">Album chưa có ảnh.</p>{% endfor %}</div>
+</section>
+{% endblock %}

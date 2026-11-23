@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}<section><h2>Bảng tin</h2>{% include "admin/_nav.html" %}
+  <form method="post" class="stack" style="margin-bottom:28px">{{ csrf() }}
+    <label>Tiêu đề<input name="title" required maxlength="120"></label>
+    <label>Nội dung<textarea name="body" rows="3" required></textarea></label>
+    <label>Loại<select name="type"><option value="news">Tin CLB</option><option value="event">Sự kiện / buổi sinh hoạt</option></select></label>
+    <button class="btn">ĐĂNG TIN</button>
+  </form>
+  {% for n in items %}<div class="news-item"><strong>{{ n.title }}</strong> <span class="muted">{{ n.created_at.strftime('%d/%m/%Y') }}</span>
+    <form method="post" action="{{ url_for('admin.delete_news', news_id=n.id) }}" style="display:inline">{{ csrf() }}<button>Xóa</button></form><p>{{ n.body }}</p></div>{% endfor %}
+</section>{% endblock %}

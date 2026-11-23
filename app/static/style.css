@@ -1,0 +1,53 @@
+:root { --ink:#111; --paper:#fff; --mute:#6b6b6b; --line:#e4e4e4; --ok:#1d6b3a; --err:#a22; --wrap:1080px; }
+* { box-sizing:border-box; }
+body { margin:0; font:400 15px/1.6 "Montserrat", system-ui, sans-serif; color:var(--ink); background:var(--paper); }
+a { color:inherit; }
+img { max-width:100%; display:block; }
+.wrap { max-width:var(--wrap); margin:0 auto; padding:0 20px; }
+header.top { border-bottom:1px solid var(--line); }
+header.top .wrap { display:flex; align-items:center; justify-content:space-between; height:64px; gap:16px; }
+.brand { display:flex; align-items:center; gap:12px; text-decoration:none; font-weight:300; letter-spacing:.08em; }
+.brand img { height:36px; width:auto; }
+nav { display:flex; align-items:center; gap:22px; flex-wrap:wrap; font-size:12px; letter-spacing:.14em; }
+nav a { text-decoration:none; color:var(--mute); }
+nav a:hover, nav a:focus-visible { color:var(--ink); }
+nav form { display:inline; }
+nav button { all:unset; cursor:pointer; color:var(--mute); }
+nav button:hover, nav button:focus-visible { color:var(--ink); }
+.hero { position:relative; min-height:380px; display:grid; place-items:center; text-align:center; color:#fff;
+        background:linear-gradient(rgba(0,0,0,.42), rgba(0,0,0,.42)), url("/static/background.jpg") center/cover; }
+.hero h1 { margin:0 0 6px; font-weight:300; font-size:clamp(26px,5vw,46px); letter-spacing:.14em; }
+.hero p { margin:0 0 22px; font-weight:300; }
+.btn, button.btn { display:inline-block; padding:10px 22px; border:1px solid var(--ink); background:var(--ink); color:#fff;
+                   font:500 13px "Montserrat", sans-serif; letter-spacing:.08em; text-decoration:none; cursor:pointer; }
+.btn.ghost { background:transparent; color:var(--ink); }
+.hero .btn { border-color:#fff; background:transparent; }
+section { padding:40px 0; }
+h2 { font-weight:500; font-size:18px; letter-spacing:.06em; margin:0 0 18px; padding-bottom:10px; border-bottom:1px solid var(--ink); }
+.grid { display:grid; gap:20px; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); }
+.card img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#f1f1f1; }
+.card h3 { margin:8px 0 0; font-size:15px; font-weight:500; }
+.card small, .muted { color:var(--mute); }
+.badge { display:inline-block; font-size:11px; padding:1px 8px; border:1px solid var(--ink); margin-left:6px; }
+.badge.pending { border-color:var(--mute); color:var(--mute); }
+.chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.chips a { font-size:13px; padding:3px 12px; border:1px solid var(--line); text-decoration:none; }
+.chips a.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+.flash { padding:10px 14px; margin:16px 0; border-left:3px solid; }
+.flash.ok { border-color:var(--ok); background:#f2faf4; }
+.flash.error { border-color:var(--err); background:#fdf3f3; }
+form.stack { display:grid; gap:14px; max-width:460px; }
+label { display:grid; gap:4px; font-size:13px; color:var(--mute); }
+input, select, textarea { font:inherit; padding:9px 10px; border:1px solid var(--line); background:#fff; color:var(--ink); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .btn:focus-visible, a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.scroll { overflow-x:auto; }
+td form { display:inline-block; margin:2px 4px 2px 0; }
+td button, td select { font-size:12px; padding:4px 8px; }
+.news-item { padding:12px 0; border-bottom:1px solid var(--line); }
+.review { display:grid; grid-template-columns:200px 1fr; gap:20px; padding:18px 0; border-bottom:1px solid var(--line); }
+.codebox { font-family:ui-monospace, Menlo, monospace; background:#f6f6f6; padding:2px 8px; }
+footer { border-top:1px solid var(--line); padding:28px 0; color:var(--mute); font-size:13px; text-align:center; }
+@media (max-width:640px) { .review { grid-template-columns:1fr; } nav { gap:14px; } }
+@media (prefers-reduced-motion:no-preference) { .card img { transition:opacity .2s; } .card a:hover img { opacity:.88; } }

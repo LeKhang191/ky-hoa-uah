@@ -1,0 +1,37 @@
+{% from "_macros.html" import csrf %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}UAH - Ký họa thực chiến{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="{{ url_for('gallery.home') }}"><img src="{{ url_for('static', filename='logo.jpg') }}" alt="">UAH - KÝ HỌA THỰC CHIẾN</a>
+  <nav>
+    <a href="{{ url_for('gallery.home') }}">VỀ CLB</a>
+    <a href="{{ url_for('gallery.gallery') }}">TRƯNG BÀY</a>
+    {% if current_user.is_authenticated %}
+      {% if current_user.can_post %}<a href="{{ url_for('gallery.upload') }}">ĐĂNG TRANH</a>{% endif %}
+      <a href="{{ url_for('gallery.mine') }}">TRANH CỦA TÔI</a>
+      {% if current_user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">QUẢN TRỊ</a>{% endif %}
+      <form method="post" action="{{ url_for('auth.logout') }}">{{ csrf() }}<button>ĐĂNG XUẤT</button></form>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">ĐĂNG NHẬP</a>
+    {% endif %}
+  </nav>
+</div></header>
+{% block hero %}{% endblock %}
+<main class="wrap">
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash {{ category }}" role="status">{{ message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<footer>© UAH - Ký họa thực chiến</footer>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}
+<section>
+  <h2>Đăng tranh</h2>
+  <form method="post" enctype="multipart/form-data" class="stack">{{ csrf() }}
+    <label>Ảnh (JPG, PNG, WEBP)<input type="file" name="file" accept="image/jpeg,image/png,image/webp" required></label>
+    <label>Tiêu đề<input name="title" required maxlength="120"></label>
+    <label>Mô tả<textarea name="description" rows="3"></textarea></label>
+    {% for key, label in tag_fields %}<label>{{ label }} (cách nhau bằng dấu phẩy)<input name="tags_{{ key }}"></label>{% endfor %}
+    <label>Hiển thị
+      <select name="visibility"><option value="public">Công khai (bản nén có watermark)</option><option value="internal">Chỉ nội bộ CLB</option></select>
+    </label>
+    <button class="btn">GỬI DUYỆT</button>
+  </form>
+  <p class="muted">Ảnh gốc được lưu riêng, không công khai. Tranh hiển thị sau khi ban chủ nhiệm duyệt.</p>
+</section>
+{% endblock %}

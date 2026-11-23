@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block content %}
+<section>
+  <h2>Kích hoạt tài khoản</h2>
+  <form method="post" class="stack">{{ csrf() }}
+    <label>Email đã đăng ký với CLB<input type="email" name="email" required autocomplete="username"></label>
+    <label>Mã kích hoạt<input name="code" required autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX"></label>
+    <label>Mật khẩu mới (từ 8 ký tự)<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    <label>Nhập lại mật khẩu<input type="password" name="password2" required minlength="8" autocomplete="new-password"></label>
+    <button class="btn">KÍCH HOẠT</button>
+  </form>
+  <p class="muted">Mã chỉ dùng được một lần và hết hạn sau 72 giờ.</p>
+</section>
+{% endblock %}

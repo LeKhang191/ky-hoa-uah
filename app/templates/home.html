@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block hero %}
+<div class="hero"><div>
+  <h1>CHÀO MỪNG ĐẾN VỚI CLB KÝ HỌA UAH</h1>
+  <p>Đi và vẽ.</p>
+  <a class="btn" href="{{ url_for('gallery.gallery') }}">KHÁM PHÁ</a>
+</div></div>
+{% endblock %}
+{% block content %}
+<section>
+  <h2>Bảng tin CLB</h2>
+  {% for n in news %}
+    <div class="news-item"><strong>{{ n.title }}</strong>{% if n.type == 'event' %}<span class="badge">Sự kiện</span>{% endif %}
+      <div class="muted">{{ n.created_at.strftime('%d/%m/%Y') }}</div><p>{{ n.body }}</p></div>
+  {% else %}<p class="muted">Chưa có thông báo mới.</p>{% endfor %}
+</section>
+<section>
+  <h2>Khoảnh khắc sinh hoạt</h2>
+  <div class="grid">
+    {% for a in albums %}
+      <article class="card"><a href="{{ url_for('gallery.album', album_id=a.id) }}">
+        <img src="{{ a.cover_path|img_url }}" alt="{{ a.title }}" loading="lazy"><h3>{{ a.title }}</h3></a></article>
+    {% else %}<p class="muted">Chưa có album nào.</p>{% endfor %}
+  </div>
+</section>
+{% if not current_user.is_authenticated %}
+<section style="text-align:center">
+  <a class="btn" href="{{ config.JOIN_FORM_URL }}" target="_blank" rel="noopener">ĐIỀN FORM THAM GIA</a>
+</section>
+{% endif %}
+{% endblock %}
