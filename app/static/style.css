@@ -25,6 +25,7 @@ nav button:hover, nav button:focus-visible { color:var(--ink); }
 section { padding:40px 0; }
 h2 { font-weight:500; font-size:18px; letter-spacing:.06em; margin:0 0 18px; padding-bottom:10px; border-bottom:1px solid var(--ink); }
 .grid { display:grid; gap:20px; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); }
+.gallery-pagination { margin-top:20px; gap:12px; }
 .card img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#f1f1f1; }
 .card h3 { margin:8px 0 0; font-size:15px; font-weight:500; }
 .card small, .muted { color:var(--mute); }

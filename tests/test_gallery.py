@@ -1,6 +1,95 @@
 import io
+import re
+from html import unescape
+
+import pytest
 
 from tests.conftest import approve_all, jpeg_bytes, member_client, post_artwork
+
+
+def seed_gallery(db, count):
+    author = db.execute("INSERT INTO profiles (full_name, email) VALUES ('Họa sĩ', 'feed@x.vn') RETURNING id").fetchone()
+    db.execute(
+        """INSERT INTO artworks (id, author_id, title, original_id, public_id, status, created_at)
+           SELECT lpad(to_hex(n), 32, '0')::uuid, %s, 'Tranh ' || n, 'original/' || n, 'public/' || n,
+                  'approved', '2026-01-01T12:00:00Z'
+           FROM generate_series(1, %s) AS n""",
+        (author["id"], count),
+    )
+
+
+def next_gallery_url(html):
+    link = re.search(r'rel="next" href="([^"]+)"', html)
+    return unescape(link[1]) if link else None
+
+
+def gallery_numbers(html):
+    return [int(number) for number in re.findall(r"<h3>Tranh (\d+)", html)]
+
+
+def test_gallery_paginates_with_tied_timestamps_and_new_uploads(app, db):
+    seed_gallery(db, 65)
+    guest = app.test_client()
+    first = guest.get("/gallery")
+    assert first.status_code == 200
+    assert first.cache_control.private and first.cache_control.no_store
+    first_html = first.get_data(as_text=True)
+    assert gallery_numbers(first_html) == list(range(65, 41, -1))
+
+    # Một tranh mới xuất hiện sau khi khách mở trang đầu.
+    db.execute(
+        """INSERT INTO artworks (author_id, title, original_id, public_id, status, created_at)
+           SELECT id, 'Tranh 66', 'original/66', 'public/66', 'approved', '2026-01-02T12:00:00Z'
+           FROM profiles WHERE email = 'feed@x.vn'"""
+    )
+    second = guest.get(next_gallery_url(first_html)).get_data(as_text=True)
+    third = guest.get(next_gallery_url(second)).get_data(as_text=True)
+    assert gallery_numbers(second) == list(range(41, 17, -1))
+    assert gallery_numbers(third) == list(range(17, 0, -1))
+    assert next_gallery_url(third) is None
+
+
+def test_gallery_next_page_rechecks_visibility_and_keeps_tag(app, admin_client, db):
+    seed_gallery(db, 53)
+    db.execute("UPDATE artworks SET visibility = 'internal' WHERE title = 'Tranh 1'")
+    db.execute("UPDATE artworks SET status = 'pending' WHERE title = 'Tranh 2'")
+    db.execute("UPDATE artworks SET deleted_at = now() WHERE title = 'Tranh 3'")
+    tag = db.execute("INSERT INTO tags (name, type) VALUES ('Hội An', 'location') RETURNING id").fetchone()["id"]
+    db.execute("INSERT INTO artwork_tags SELECT id, %s FROM artworks WHERE title <> 'Tranh 4'", (tag,))
+
+    member = member_client(app, admin_client, "Lan", "lan@x.vn", status="break")
+    first = member.get(f"/gallery?tag={tag}").get_data(as_text=True)
+    next_url = next_gallery_url(first)
+    assert next_url is not None and f"tag={tag}" in next_url
+    assert f'href="/gallery?tag={tag}"' in first
+
+    second = member.get(next_url).get_data(as_text=True)
+    guest_second = app.test_client().get(next_url).get_data(as_text=True)
+    # Cùng URL phân trang được mở với hai quyền khác nhau.
+    assert gallery_numbers(second) == list(range(29, 5, -1))
+    assert gallery_numbers(guest_second) == gallery_numbers(second)
+    last_url = next_gallery_url(second)
+    assert last_url is not None
+    member_last = member.get(last_url).get_data(as_text=True)
+    guest_last = app.test_client().get(last_url).get_data(as_text=True)
+    assert gallery_numbers(member_last) == [5, 1]
+    assert "/image/authenticated/" in member_last
+    assert gallery_numbers(guest_last) == [5]
+    assert "/image/authenticated/" not in guest_last
+    assert next_gallery_url(member_last) is None
+    assert next_gallery_url(guest_last) is None
+
+
+def test_gallery_hides_next_link_for_exactly_one_page(app, db):
+    seed_gallery(db, 24)
+    html = app.test_client().get("/gallery").get_data(as_text=True)
+    assert len(gallery_numbers(html)) == 24
+    assert next_gallery_url(html) is None
+
+
+@pytest.mark.parametrize("cursor", ["", "invalid", "2026-01-01~00000000-0000-0000-0000-000000000001"])
+def test_gallery_rejects_invalid_cursors(app, cursor):
+    assert app.test_client().get("/gallery", query_string={"cursor": cursor}).status_code == 400
 
 
 def test_original_goes_private_untouched_public_copy_is_processed(app, admin_client, uploads, db):

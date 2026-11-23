@@ -8,6 +8,12 @@
     {% for t in tags %}<a href="{{ url_for('gallery.gallery', tag=t.id) }}" class="{{ 'on' if active_tag == t.id|string }}">{{ t.name }}</a>{% endfor %}
   </div>
   <div class="grid">{% for a in artworks %}{{ card(a) }}{% else %}<p class="muted">Chưa có tranh nào.</p>{% endfor %}</div>
+  {% if has_cursor or next_cursor %}
+    <nav class="gallery-pagination" aria-label="Phân trang tranh">
+      {% if has_cursor %}<a class="btn ghost" href="{{ url_for('gallery.gallery', tag=active_tag) }}">Về đầu</a>{% endif %}
+      {% if next_cursor %}<a class="btn" rel="next" href="{{ url_for('gallery.gallery', tag=active_tag, cursor=next_cursor) }}">Xem thêm</a>{% endif %}
+    </nav>
+  {% endif %}
   {% if not current_user.is_authenticated %}<p class="muted">Đăng nhập để xem thêm tranh lưu hành nội bộ.</p>{% endif %}
 </section>
 {% endblock %}

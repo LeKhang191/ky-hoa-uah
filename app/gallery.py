@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import db, images, storage
@@ -10,6 +11,7 @@ bp = Blueprint("gallery", __name__)
 
 TAG_FIELDS = (("location", "Địa điểm"), ("material", "Chất liệu"), ("session", "Buổi thực chiến"))
 MAX_TAGS_PER_TYPE = 8
+GALLERY_PAGE_SIZE = 24
 
 # Khách chỉ thấy tranh công khai; thành viên đăng nhập (kể cả break/former) thấy cả nội bộ.
 VISIBLE = """a.status = 'approved' AND a.deleted_at IS NULL AND (%(internal)s OR a.visibility = 'public')"""
@@ -45,24 +47,61 @@ def gallery():
     tag_id = request.args.get("tag")
     if tag_id:
         try:
-            UUID(tag_id)
+            tag_id = str(UUID(tag_id))
         except ValueError:
             abort(404)
-    params = {"internal": current_user.is_authenticated, "tag": tag_id}
+    else:
+        tag_id = None
+
+    cursor = request.args.get("cursor")
+    before_time = before_id = None
+    if cursor is not None:
+        try:
+            timestamp, artwork_id = cursor.split("~", 1)
+            before_time = datetime.fromisoformat(timestamp)
+            before_id = UUID(artwork_id)
+            if before_time.tzinfo is None:
+                raise ValueError
+        except ValueError:
+            abort(400, description="Mốc phân trang không hợp lệ.")
+
+    params = {
+        "internal": current_user.is_authenticated,
+        "tag": tag_id,
+        "before_time": before_time,
+        "before_id": before_id,
+        "limit": GALLERY_PAGE_SIZE + 1,
+    }
     artworks = db.rows(
-        f"""SELECT a.*, p.full_name AS author_name,
-                   COALESCE(array_agg(t.name ORDER BY t.type, t.name) FILTER (WHERE t.id IS NOT NULL), '{{}}') AS tag_names
-            FROM artworks a
+        f"""WITH page AS (
+                SELECT a.id, a.created_at, a.author_id, a.title, a.public_id, a.visibility
+                FROM artworks a
+                WHERE {VISIBLE}
+                  AND (%(tag)s::uuid IS NULL OR EXISTS (
+                        SELECT 1 FROM artwork_tags x WHERE x.artwork_id = a.id AND x.tag_id = %(tag)s::uuid))
+                  AND (%(before_time)s::timestamptz IS NULL OR
+                       (a.created_at, a.id) < (%(before_time)s::timestamptz, %(before_id)s::uuid))
+                ORDER BY a.created_at DESC, a.id DESC
+                LIMIT %(limit)s
+            )
+            SELECT a.*, p.full_name AS author_name,
+                   ARRAY(
+                       SELECT t.name FROM artwork_tags at
+                       JOIN tags t ON t.id = at.tag_id
+                       WHERE at.artwork_id = a.id
+                       ORDER BY t.type, t.name
+                   ) AS tag_names
+            FROM page a
             JOIN profiles p ON p.id = a.author_id
-            LEFT JOIN artwork_tags at ON at.artwork_id = a.id
-            LEFT JOIN tags t ON t.id = at.tag_id
-            WHERE {VISIBLE}
-              AND (%(tag)s::uuid IS NULL OR EXISTS (
-                    SELECT 1 FROM artwork_tags x WHERE x.artwork_id = a.id AND x.tag_id = %(tag)s::uuid))
-            GROUP BY a.id, p.full_name
-            ORDER BY a.created_at DESC LIMIT 60""",
+            ORDER BY a.created_at DESC, a.id DESC""",
         params,
     )
+    next_cursor = None
+    if len(artworks) > GALLERY_PAGE_SIZE:
+        artworks = artworks[:GALLERY_PAGE_SIZE]
+        last = artworks[-1]
+        next_cursor = f"{last['created_at'].isoformat()}~{last['id']}"
+
     tags = db.rows(
         f"""SELECT DISTINCT t.id, t.name, t.type
             FROM tags t
@@ -72,7 +111,17 @@ def gallery():
             ORDER BY t.type, t.name""",
         params,
     )
-    return render_template("gallery.html", artworks=artworks, tags=tags, active_tag=tag_id)
+    response = make_response(render_template(
+        "gallery.html",
+        artworks=artworks,
+        tags=tags,
+        active_tag=tag_id,
+        next_cursor=next_cursor,
+        has_cursor=cursor is not None,
+    ))
+    response.cache_control.private = True
+    response.cache_control.no_store = True
+    return response
 
 
 @bp.route("/albums/<uuid:album_id>")
